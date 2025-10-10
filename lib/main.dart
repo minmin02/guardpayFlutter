@@ -1,7 +1,7 @@
 // Flutter 앱의 시작점입니다.
 import 'package:flutter/material.dart';
 // 1. 우리가 만든 회원가입 화면 파일을 불러옵니다.
-import 'signup_screen.dart';
+import 'features/auth/screens/signup_screen.dart';
 
 void main() {
   runApp(const MyApp());

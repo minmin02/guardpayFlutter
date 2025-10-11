@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-// HTTP 요청을 위해 http 패키지를 불러옵니다.
-import 'package:http/http.dart' as http;
-// 데이터를 JSON으로 변환하기 위해 필요합니다.
+import 'package:http/http.dart' as http; // SnackBar 등 Context가 필요한 곳에서 HTTP 라이브러리를 사용하기 위해 필요
 import 'dart:convert';
 
-// React의 함수형 컴포넌트가 Flutter의 StatefulWidget으로 변경됩니다.
-// 화면의 내용이 바뀌어야 할 때 (예: 글자 입력) StatefulWidget을 사용합니다.
+// 분리된 서비스와 위젯을 임포트합니다.
+import '../services/auth_service.dart';
+import '../widgets/email_auth_section.dart'; // <--- EmailAuthSection 임포트 유지 및 정리
+import '../widgets/auth_input_field.dart'; // <--- 중복 임포트 제거 후 하나만 유지
+
+// 회원가입 화면
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -13,220 +15,242 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-// 위젯의 '상태'를 관리하는 클래스입니다. React의 useState 훅의 역할을 합니다.
 class _SignupScreenState extends State<SignupScreen> {
-  // 1. 폼 데이터 상태 관리
-  // React의 formData 객체 대신, 각 입력 필드를 TextEditingController로 관리합니다.
+  // 1. 서비스 인스턴스 및 상태 관리
+  final AuthService _authService = AuthService();
+  final _formKey = GlobalKey<FormState>(); // 폼 유효성 검사를 위한 키
+
   final _emailController = TextEditingController();
   final _authCodeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   final _nicknameController = TextEditingController();
 
-  // 체크박스와 이메일 확인 상태는 boolean으로 관리합니다.
   bool _termsAgreed = false;
-  bool _isEmailConfirmed = false;
+  bool _isCodeRequested = false; // 인증 코드가 요청되었는가?
+  bool _isCodeVerified = false; // 인증 코드가 확인되었는가?
+  bool _isLoading = false; // 로딩 상태
 
-  // 2. 입력값 변경 시 상태 업데이트
-  // Controller를 사용하면 따로 핸들러가 필요 없지만, 체크박스를 위해 만듭니다.
-  void _toggleTerms(bool? value) {
-    // setState는 React의 setFormData와 같습니다. 화면을 다시 그리도록 명령합니다.
-    setState(() {
-      _termsAgreed = value ?? false;
-    });
-  }
-
-  // 3. 이메일 '확인' 버튼 함수
-  void _handleEmailConfirm() {
-    final email = _emailController.text;
-    final emailRegex = RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$");
-    if (email.isEmpty || !emailRegex.hasMatch(email)) {
-      // alert() 대신 ScaffoldMessenger와 SnackBar를 사용해 메시지를 보여줍니다.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('올바른 이메일 주소를 입력해주세요.')),
-      );
-      return;
+  // 2. 인증 코드 요청 핸들러
+  Future<void> _handleCodeRequest() async {
+    setState(() { _isLoading = true; });
+    try {
+      await _authService.requestAuthCode(_emailController.text);
+      setState(() {
+        _isCodeRequested = true;
+        _authCodeController.clear(); // 새 요청 시 코드 초기화
+      });
+      _showSnackBar('인증 코드가 이메일로 전송되었습니다.');
+    } catch (e) {
+      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      setState(() { _isLoading = false; });
     }
-
-    print('이메일 확인 완료: $email');
-    setState(() {
-      _isEmailConfirmed = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이메일이 확인되었습니다.')),
-    );
   }
 
-  // 4. '가입하기' 버튼 함수 (handleSubmit)
+  // 3. 인증 코드 확인 핸들러
+  Future<void> _handleCodeVerify() async {
+    setState(() { _isLoading = true; });
+    try {
+      await _authService.verifyAuthCode(_emailController.text, _authCodeController.text);
+      setState(() {
+        _isCodeVerified = true;
+      });
+      _showSnackBar('이메일 인증이 성공적으로 완료되었습니다.');
+    } catch (e) {
+      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      setState(() { _isLoading = false; });
+    }
+  }
+
+  // 4. '가입하기' 버튼 함수 (최종 제출)
   Future<void> _handleSubmit() async {
-    // 유효성 검사
-    if (_emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _nicknameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 항목(*)을 모두 입력해주세요.')),
-      );
+    if (!_formKey.currentState!.validate()) {
+      return; // 폼 유효성 검사 실패 시 종료
+    }
+
+    // 추가 로직 유효성 검사
+    if (_passwordController.text != _passwordConfirmController.text) {
+      _showSnackBar('비밀번호가 일치하지 않습니다.');
       return;
     }
-    if (_passwordController.text != _passwordConfirmController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호가 일치하지 않습니다.')),
-      );
+    if (!_isCodeVerified) {
+      _showSnackBar('이메일 인증을 완료해주세요.');
       return;
     }
     if (!_termsAgreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('약관에 동의해주세요.')),
-      );
+      _showSnackBar('약관에 동의해주세요.');
       return;
     }
 
-    // 🚨 중요: API 주소는 React Native와 동일하게 10.0.2.2를 사용합니다.
-    const apiUrl = 'http://10.0.2.2:8080/api/users/signup';
-
-    // 서버에 보낼 데이터 (JavaScript의 객체 -> Dart의 Map)
-    final signupData = {
-      'email': _emailController.text,
-      'password': _passwordController.text,
-      'nickname': _nicknameController.text,
-    };
-
+    setState(() { _isLoading = true; });
     try {
-      // axios.post -> http.post
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(signupData), // 데이터를 JSON 문자열로 인코딩
+      final message = await _authService.signup(
+        email: _emailController.text,
+        password: _passwordController.text,
+        nickname: _nicknameController.text,
       );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('가입 성공 응답: ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원가입이 완료되었습니다!')),
-        );
-        // TODO: 로그인 화면으로 이동하는 로직 추가
-      } else {
-        print('가입 실패: ${response.body}');
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['message'] ?? '가입에 실패했습니다.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
-    } catch (error) {
-      print('가입 요청 실패: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서버와 통신할 수 없습니다.')),
-      );
+      _showSnackBar(message);
+      // TODO: 가입 성공 후 로그인 화면으로 이동
+    } catch (e) {
+      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      setState(() { _isLoading = false; });
     }
   }
 
-  // React의 return (...) 부분은 Flutter의 build 메소드에 해당합니다.
-  // JSX 대신 위젯(Widget)을 조립하여 UI를 만듭니다.
+  // 간결한 SnackBar 표시 유틸리티
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  // 리소스 해제
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _authCodeController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Scaffold는 화면의 기본 구조(상단 바, 본문 등)를 제공합니다.
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 배경색과 동일
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(), // TODO: 실제 라우팅에 맞게 수정
+        ),
+      ),
       // 키보드가 올라올 때 화면이 가려지지 않도록 스크롤 가능하게 만듭니다.
       body: SingleChildScrollView(
-        // 화면 전체에 여백을 줍니다.
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-        child: Column(
-          // 자식 위젯들을 세로로 정렬합니다.
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'GuardPay',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF6AA84F),
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 30), // 여백
-
-            // 이메일 입력
-            const Text('이메일 *', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                hintText: '이메일',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 15),
-
-            // 비밀번호 입력
-            const Text('비밀번호 *', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                hintText: '비밀번호',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              obscureText: true, // 비밀번호 가리기
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordConfirmController,
-              decoration: const InputDecoration(
-                hintText: '비밀번호 재입력',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 15),
-
-            // 닉네임 입력
-            const Text('닉네임 *', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            TextField(
-              controller: _nicknameController,
-              decoration: const InputDecoration(
-                hintText: '닉네임',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            // 약관 동의
-            Row(
-              children: [
-                Checkbox(
-                  value: _termsAgreed,
-                  onChanged: _toggleTerms,
-                ),
-                const Text('약관 전체 동의'),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 가입하기 버튼
-            ElevatedButton(
-              onPressed: _handleSubmit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6AA84F),
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                textStyle: const TextStyle(
-                  fontSize: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // GuardPay 로고
+              const Text(
+                'GuardPay',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF6AA84F),
+                  fontSize: 55,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              child: const Text('가입하기'),
-            ),
-          ],
+              const SizedBox(height: 30),
+
+              // 1. 이메일 인증 섹션 (분리된 위젯 사용)
+              EmailAuthSection(
+                emailController: _emailController,
+                codeController: _authCodeController,
+                isCodeRequested: _isCodeRequested,
+                isCodeVerified: _isCodeVerified,
+                onCodeRequest: _handleCodeRequest,
+                onCodeVerify: _handleCodeVerify,
+              ),
+              const SizedBox(height: 15),
+
+              // 2. 비밀번호 입력 (AuthInputField 사용)
+              const Text('비밀번호 *', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              AuthInputField( // <-- AuthInputField 적용
+                controller: _passwordController,
+                hintText: '비밀번호',
+                isPassword: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty || value.length < 8) {
+                    return '비밀번호는 8자 이상이어야 합니다.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              AuthInputField( // <-- AuthInputField 적용
+                controller: _passwordConfirmController,
+                hintText: '비밀번호 재입력',
+                isPassword: true,
+                validator: (value) {
+                  if (value != _passwordController.text) {
+                    return '비밀번호가 일치하지 않습니다.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 15),
+
+              // 3. 닉네임 입력 (AuthInputField 사용)
+              const Text('닉네임 *', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              AuthInputField( // <-- AuthInputField 적용
+                controller: _nicknameController,
+                hintText: '닉네임',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '닉네임을 입력해주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 25),
+
+              // 4. 약관 동의
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD0D0D0)),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _termsAgreed,
+                      onChanged: (value) => setState(() { _termsAgreed = value ?? false; }),
+                    ),
+                    const Text('약관 전체 동의'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 5. 가입하기 버튼
+              ElevatedButton(
+                onPressed: _isLoading ? null : _handleSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6AA84F),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2
+                    )
+                )
+                    : const Text(
+                    '가입하기',
+                    style: TextStyle(color: Colors.white)
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -82,7 +82,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     // 🚨 중요: API 주소는 React Native와 동일하게 10.0.2.2를 사용합니다.
-    const apiUrl = 'http://10.0.2.2:8080/api/users/signup';
+    const apiUrl = 'http://10.0.2.2:8080/api/auth/signup';
 
     // 서버에 보낼 데이터 (JavaScript의 객체 -> Dart의 Map)
     final signupData = {

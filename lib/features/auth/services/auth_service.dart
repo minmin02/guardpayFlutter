@@ -1,11 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'dart:convert'; // jsonEncode, jsonDecode를 사용하기 위해 필요
+import 'package:http/http.dart' as http; // HTTP 통신을 위해 필요
 
-// AuthService는 회원가입과 관련된 모든 비즈니스 로직을 처리합니다.
 class AuthService {
   // 실제 서버 환경에서는 여기에 Dio 인스턴스 등이 주입될 수 있습니다.
   final String _apiUrl = 'http://10.0.2.2:8080/api/users'; // 기본 API 경로 설정
+  static const String _tempAuthCode = '123456'; // 임시 이메일 인증 코드
 
   // 1. 이메일 인증 코드를 요청하는 함수
   Future<bool> requestAuthCode(String email) async {
@@ -24,7 +23,8 @@ class AuthService {
 
   // 2. 인증 코드를 확인하는 함수
   Future<bool> verifyAuthCode(String email, String code) async {
-    if (code != '123456') { // TODO: 실제 인증 로직으로 대체 필요
+    // 정의된 임시 인증 코드(_tempAuthCode)와 사용자가 입력한 코드를 비교합니다.
+    if (code != _tempAuthCode) { // TODO: 실제 인증 로직으로 대체 필요
       throw Exception('인증 코드가 일치하지 않습니다.');
     }
     print('인증 코드 확인 완료: $email');
@@ -39,7 +39,7 @@ class AuthService {
     required String nickname,
   }) async {
     // API 주소
-    const apiUrl = 'http://10.0.2.2:8080/api/users/signup';
+    const apiUrl = 'http://10.0.2.2:8080/api/auth/signup';
 
     // 서버에 보낼 데이터 (Dart의 Map)
     final signupData = {

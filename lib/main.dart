@@ -1,7 +1,8 @@
-// Flutter 앱의 시작점입니다.
 import 'package:flutter/material.dart';
 // 1. 우리가 만든 회원가입 화면 파일을 불러옵니다.
-import 'signup_screen.dart';
+import 'features/auth/screens/signup_screen.dart';
+// 테마 설정을 config 폴더에서 불러옵니다.
+import 'config/theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,24 +13,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 이제 main.dart에서는 테마 정의 없이 appTheme() 함수를 호출합니다.
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'GuardPay App',
-      theme: ThemeData(
-        // 앱의 전반적인 색상 톤을 설정합니다.
-        primarySwatch: Colors.green,
-        // 배경색을 React Native 버전과 유사하게 설정합니다.
-        scaffoldBackgroundColor: const Color(0xFFF9F5EC),
-        // 입력창(TextField)의 기본 디자인을 설정합니다.
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-          filled: true,
-          fillColor: Colors.white,
-        ),
-      ),
+      // config/theme.dart에서 정의한 테마를 사용합니다.
+      theme: appTheme(),
       // 2. 앱이 시작될 때 보여줄 첫 화면으로 SignupScreen을 지정합니다.
       home: const SignupScreen(),
     );
   }
 }
-

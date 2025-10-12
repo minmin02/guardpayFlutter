@@ -92,12 +92,16 @@ class _SignupScreenState extends State<SignupScreen> {
         nickname: _nicknameController.text,
       );
       _showSnackBar(message);
-      // TODO: 가입 성공 후 로그인 화면으로 이동
+
+      // ✅ 회원가입 성공 시 로그인 화면으로 이동
+      await Future.delayed(const Duration(seconds: 1)); // 알림 잠깐 보여준 뒤
+      Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       setState(() { _isLoading = false; });
     }
+
   }
 
   // 간결한 SnackBar 표시 유틸리티

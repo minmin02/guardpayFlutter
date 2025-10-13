@@ -59,75 +59,132 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'GuardPay',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF6AA84F),
-                fontSize: 50,
-                fontWeight: FontWeight.bold,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 60),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 110),
+              const Text(
+                'GuardPay',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF6AA84F),
+                  fontSize: 55,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                hintText: '이메일',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: '비밀번호',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 25),
 
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6AA84F),
-                padding: const EdgeInsets.symmetric(vertical: 15),
+              const SizedBox(height: 80),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  hintText: '이메일',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
+                ),
               ),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('로그인'),
-            ),
-            const SizedBox(height: 10),
 
-            // 회원가입 이동 버튼
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6AA84F),
-                padding: const EdgeInsets.symmetric(vertical: 15),
+              const SizedBox(height: 13),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: '비밀번호',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
+                ),
               ),
-              child: const Text('회원가입'),
-            ),
-            const SizedBox(height: 10),
 
-            TextButton(
-              onPressed: () {
-                // TODO: 비밀번호 찾기 페이지 연결
-              },
-              child: const Text('이메일/비밀번호 찾기 >'),
-            ),
-          ],
+              const SizedBox(height: 13),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _handleLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6AA84F),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('로그인'),
+              ),
+
+              const SizedBox(height: 13),
+              // 회원가입 이동 버튼
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/signup');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6AA84F),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('회원가입'),
+              ),
+
+              const SizedBox(height: 7),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/reset');
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  textStyle: const TextStyle(
+                    fontSize: 14
+                  )
+                ),
+                child: const Text('이메일/비밀번호 찾기 >'),
+              ),
+
+              // 소셜 로그인 버튼 추가
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 카카오 로그인 버튼
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: 카카오 로그인 로직 구현
+                    },
+                    child: Image.asset(
+                      'assets/images/kakao_logo.png',
+                      width: 70,
+                      height: 70,
+                    ),
+                  ),
+
+                  const SizedBox(width: 22),
+                  // 구글 로그인 버튼
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: 구글 로그인 로직 구현
+                    },
+                    child: Image.asset(
+                      'assets/images/google_logo.png',
+                      width: 70,
+                      height: 70,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

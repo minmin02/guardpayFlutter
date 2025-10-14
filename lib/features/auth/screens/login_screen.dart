@@ -59,77 +59,78 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'GuardPay',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF6AA84F),
-                fontSize: 50,
-                fontWeight: FontWeight.bold,
+      backgroundColor: const Color(0xFFF9F5EC), // ✅ 배경색 추가 (theme와 통일)
+      body: SafeArea(
+        child: SingleChildScrollView(      // ✅ <--- 여기가 핵심
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'GuardPay',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF6AA84F),
+                  fontSize: 50,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                hintText: '이메일',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
+              const SizedBox(height: 30),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  hintText: '이메일',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: '비밀번호',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
+              const SizedBox(height: 15),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: '비밀번호',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 25),
+              const SizedBox(height: 25),
 
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6AA84F),
-                padding: const EdgeInsets.symmetric(vertical: 15),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _handleLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6AA84F),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('로그인'),
               ),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('로그인'),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // 회원가입 이동 버튼
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6AA84F),
-                padding: const EdgeInsets.symmetric(vertical: 15),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/signup');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6AA84F),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: const Text('회원가입'),
               ),
-              child: const Text('회원가입'),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            TextButton(
-              onPressed: () {
-                // TODO: 비밀번호 찾기 페이지 연결
-              },
-              child: const Text('이메일/비밀번호 찾기 >'),
-            ),
-          ],
+              TextButton(
+                onPressed: () {},
+                child: const Text('이메일/비밀번호 찾기 >'),
+              ),
+            ],
+          ),
         ),
       ),
     );
+
   }
 }

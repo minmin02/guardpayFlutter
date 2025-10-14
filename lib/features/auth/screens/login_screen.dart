@@ -59,23 +59,25 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F5EC), // ✅ 배경색 추가 (theme와 통일)
+      backgroundColor: const Color(0xFFF9F5EC), // theme와 통일
       body: SafeArea(
-        child: SingleChildScrollView(      // ✅ <--- 여기가 핵심
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 60),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 110),
               const Text(
                 'GuardPay',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF6AA84F),
-                  fontSize: 50,
+                  fontSize: 55,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 80),
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -83,9 +85,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
+                  contentPadding:
+                  EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
-              const SizedBox(height: 15),
+
+              const SizedBox(height: 13),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -94,43 +99,92 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
+                  contentPadding:
+                  EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
-              const SizedBox(height: 25),
 
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleLogin,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6AA84F),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('로그인'),
               ),
-              const SizedBox(height: 10),
 
+              const SizedBox(height: 13),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, '/signup');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6AA84F),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('회원가입'),
               ),
-              const SizedBox(height: 10),
 
+              const SizedBox(height: 7),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushNamed(context, '/reset');
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  textStyle: const TextStyle(fontSize: 14),
+                ),
                 child: const Text('이메일/비밀번호 찾기 >'),
+              ),
+
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: 카카오 로그인 로직 구현
+                    },
+                    child: Image.asset(
+                      'assets/images/kakao_logo.png',
+                      width: 70,
+                      height: 70,
+                    ),
+                  ),
+                  const SizedBox(width: 22),
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: 구글 로그인 로직 구현
+                    },
+                    child: Image.asset(
+                      'assets/images/google_logo.png',
+                      width: 70,
+                      height: 70,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
-
   }
 }

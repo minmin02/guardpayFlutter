@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // SnackBar 등 Context가 필요한 곳에서 HTTP 라이브러리를 사용하기 위해 필요
-import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 // 분리된 서비스와 위젯을 임포트합니다.
 import '../services/auth_service.dart';
-import '../widgets/email_auth_section.dart'; // <--- EmailAuthSection 임포트 유지 및 정리
-import '../widgets/auth_input_field.dart'; // <--- 중복 임포트 제거 후 하나만 유지
+import '../widgets/email_auth_section.dart';
+import '../widgets/auth_input_field.dart';
 
 // 회원가입 화면
 class SignupScreen extends StatefulWidget {
@@ -44,7 +44,9 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() { _isLoading = false; });
+      if(mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
@@ -53,14 +55,14 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() { _isLoading = true; });
     try {
       await _authService.verifyAuthCode(_emailController.text, _authCodeController.text);
-      setState(() {
-        _isCodeVerified = true;
-      });
+      setState(() { _isCodeVerified = true; });
       _showSnackBar('이메일 인증이 성공적으로 완료되었습니다.');
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() { _isLoading = false; });
+      if(mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
@@ -70,7 +72,6 @@ class _SignupScreenState extends State<SignupScreen> {
       return; // 폼 유효성 검사 실패 시 종료
     }
 
-    // 추가 로직 유효성 검사
     if (_passwordController.text != _passwordConfirmController.text) {
       _showSnackBar('비밀번호가 일치하지 않습니다.');
       return;
@@ -93,22 +94,56 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       _showSnackBar(message);
 
-      // ✅ 회원가입 성공 시 로그인 화면으로 이동
-      await Future.delayed(const Duration(seconds: 1)); // 알림 잠깐 보여준 뒤
-      Navigator.pushReplacementNamed(context, '/login');
+      // ✅ [병합] 회원가입 성공 시 로그인 화면으로 이동하는 로직을 활성화합니다.
+      await Future.delayed(const Duration(seconds: 1)); // 알림을 보여줄 시간
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() { _isLoading = false; });
+      if(mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
+  }
 
+  // 5. 카카오 로그인/가입 처리 핸들러
+  Future<void> _handleKakaoSignup() async {
+    if (_isLoading) return;
+    setState(() { _isLoading = true; });
+
+    try {
+      final result = await _authService.signupWithKakao();
+      final isNewUser = result['isNewUser'] ?? false;
+
+      if (isNewUser) {
+        // TODO: 신규 사용자일 경우, 약관 동의나 추가 정보 입력 화면으로 이동
+        _showSnackBar('카카오 계정으로 가입을 진행합니다. 추가 정보 입력 화면으로 이동합니다.');
+        // 예: Navigator.push(context, MaterialPageRoute(builder: (_) => TermsScreen(userInfo: result)));
+      } else {
+        // TODO: 기존 사용자일 경우, JWT 저장 후 메인 화면으로 이동
+        _showSnackBar('카카오 계정으로 로그인되었습니다. 메인 화면으로 이동합니다.');
+        // 예: final token = result['accessToken']; await saveToken(token);
+        // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => MainScreen()), (route) => false);
+      }
+    } catch (e) {
+      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if(mounted) {
+        setState(() { _isLoading = false; });
+      }
+    }
   }
 
   // 간결한 SnackBar 표시 유틸리티
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   // 리소스 해제
@@ -126,14 +161,13 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 배경색과 동일
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(), // TODO: 실제 라우팅에 맞게 수정
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      // 키보드가 올라올 때 화면이 가려지지 않도록 스크롤 가능하게 만듭니다.
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Form(
@@ -153,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 30),
 
-              // 1. 이메일 인증 섹션 (분리된 위젯 사용)
+              // 1. 이메일 인증 섹션
               EmailAuthSection(
                 emailController: _emailController,
                 codeController: _authCodeController,
@@ -164,10 +198,10 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 15),
 
-              // 2. 비밀번호 입력 (AuthInputField 사용)
+              // 2. 비밀번호 입력
               const Text('비밀번호 *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 5),
-              AuthInputField( // <-- AuthInputField 적용
+              AuthInputField(
                 controller: _passwordController,
                 hintText: '비밀번호',
                 isPassword: true,
@@ -179,7 +213,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 },
               ),
               const SizedBox(height: 10),
-              AuthInputField( // <-- AuthInputField 적용
+              AuthInputField(
                 controller: _passwordConfirmController,
                 hintText: '비밀번호 재입력',
                 isPassword: true,
@@ -192,10 +226,10 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 15),
 
-              // 3. 닉네임 입력 (AuthInputField 사용)
+              // 3. 닉네임 입력
               const Text('닉네임 *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 5),
-              AuthInputField( // <-- AuthInputField 적용
+              AuthInputField(
                 controller: _nicknameController,
                 hintText: '닉네임',
                 validator: (value) {
@@ -233,24 +267,46 @@ class _SignupScreenState extends State<SignupScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6AA84F),
                   padding: const EdgeInsets.symmetric(vertical: 15),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2
-                    )
-                )
-                    : const Text(
-                    '가입하기',
-                    style: TextStyle(color: Colors.white)
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('가입하기', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(height: 20),
+
+              // 'OR' 구분선
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey[400])),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('OR', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey[400])),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 카카오로 시작하기 버튼
+              ElevatedButton(
+                onPressed: _isLoading ? null : _handleKakaoSignup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFEE500), // 카카오 노란색
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text(
+                  '카카오로 시작하기',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

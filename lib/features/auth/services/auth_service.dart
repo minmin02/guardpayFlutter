@@ -1,10 +1,17 @@
 import 'dart:convert'; // jsonEncode, jsonDecode를 사용하기 위해 필요
 import 'package:http/http.dart' as http; // HTTP 통신을 위해 필요
+import 'package:flutter/services.dart'; // [추가] PlatformException을 사용하기 위해 필요
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'; // [추가] 카카오 SDK
+import 'dart:developer'; // 👈 1. dart:developer 라이브러리를 import 합니다.
+
+
+
 
 class AuthService {
   // 실제 서버 환경에서는 여기에 Dio 인스턴스 등이 주입될 수 있습니다.
   final String _apiUrl = 'http://10.0.2.2:8080/api/users'; // 기본 API 경로 설정
   static const String _tempAuthCode = '123456'; // 임시 이메일 인증 코드
+  final String _baseUrl = 'http://10.0.2.2:8080'; // 안드로이드 에뮬레이터 기준
 
   // 1. 이메일 인증 코드를 요청하는 함수
   Future<bool> requestAuthCode(String email) async {
@@ -69,4 +76,147 @@ class AuthService {
       throw Exception('서버와 통신할 수 없습니다.');
     }
   }
+
+  /// 비밀번호 재설정을 위한 이메일 인증 코드를 요청합니다.
+  Future<void> requestPasswordResetCode(String email) async {
+    // TODO: 실제 서버의 '비밀번호 재설정용' 코드 요청 API와 연동해야 합니다.
+    print('[AuthService] 비밀번호 재설정 코드 요청: $email');
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  /// 비밀번호 재설정을 위한 인증 코드를 확인합니다.
+  Future<void> verifyPasswordResetCode(String email, String code) async {
+    // TODO: 실제 서버의 '비밀번호 재설정용' 코드 확인 API와 연동해야 합니다.
+    if (code != _tempAuthCode) {
+      throw Exception('인증 코드가 일치하지 않습니다.');
+    }
+    print('[AuthService] 비밀번호 재설정 코드 확인 완료: $email');
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  /// 새 비밀번호로 재설정하는 최종 요청을 보냅니다.
+  Future<String> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    // --- 백엔드 API 없이 프론트엔드 시연을 위한 임시 코드 ---
+    print('[AuthService] 비밀번호 변경 요청 시뮬레이션 시작 (서버 호출 안함)');
+
+    // 마치 서버가 성공적으로 응답한 것처럼 1초간 기다립니다.
+    await Future.delayed(const Duration(seconds: 1));
+
+    // 서버 대신 성공 메시지를 직접 반환합니다.
+    return '비밀번호가 성공적으로 변경되었습니다.';
+
+    /*
+    // 여기부터는 원래 코드입니다. 나중에 백엔드 API가 준비되면 이 주석을 풀고 위 코드를 지우면 됩니다.
+    const apiUrl = 'http://10.0.2.2:8080/api/auth/reset';
+    final resetData = {'email': email, 'code': code, 'newPassword': newPassword};
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(resetData),
+      );
+
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        return '비밀번호가 성공적으로 변경되었습니다.';
+      } else {
+        throw Exception(responseBody['message'] ?? '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (e) {
+      print('[AuthService] Reset Password Error: $e');
+      throw Exception(e is Exception ? e.toString().replaceFirst('Exception: ', '') : '서버와 통신할 수 없습니다.');
+    }
+    */
+  }
+
+  // [수정] 카카오 회원가입/로그인 처리 함수
+  Future<Map<String, dynamic>> signupWithKakao() async {
+    // 1. [추가] 기존 로그인 정보가 있다면 먼저 로그아웃 처리
+    try {
+      if (await AuthApi.instance.hasToken()) {
+        await UserApi.instance.logout();
+        print('기존 토큰 발견. 로그아웃 처리 완료.');
+      }
+    } catch (error) {
+      print('로그아웃 처리 중 에러 발생 (무시): $error');
+    }
+    // 2. 카카오 SDK로 액세스 토큰 받기 (기존 로직과 동일)
+    String? kakaoAccessToken;
+    if (await isKakaoTalkInstalled()) {
+      try {
+        await UserApi.instance.loginWithKakaoTalk();
+        kakaoAccessToken = (await TokenManagerProvider.instance.manager.getToken())?.accessToken;
+      } catch (error) {
+        if (error is PlatformException && error.code == 'CANCELED') {
+          throw Exception('카카오톡 로그인이 취소되었습니다.');
+        }
+        try {
+          await UserApi.instance.loginWithKakaoAccount();
+          kakaoAccessToken = (await TokenManagerProvider.instance.manager.getToken())?.accessToken;
+        } catch (accountError) {
+          throw Exception('카카오 계정 로그인에 실패했습니다.');
+        }
+      }
+    } else {
+      try {
+        await UserApi.instance.loginWithKakaoAccount();
+        kakaoAccessToken = (await TokenManagerProvider.instance.manager.getToken())?.accessToken;
+      } catch (accountError) {
+        throw Exception('카카오 계정 로그인에 실패했습니다.');
+      }
+    }
+
+    if (kakaoAccessToken == null) {
+      throw Exception('카카오 액세스 토큰을 가져오는데 실패했습니다.');
+    }
+
+    log('🚀 Sending request to backend...');
+    log('URL: $_baseUrl/api/auth/kakao');
+    log('Kakao Access Token: $kakaoAccessToken');
+    // 3. 백엔드 서버로 액세스 토큰 전송 (기존 로직과 동일)
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/auth/kakao'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'accessToken': kakaoAccessToken}),
+    );
+
+
+    // ✅ [로그 추가] 백엔드로부터 받은 응답의 상태 코드와 본문을 출력
+    log('✅ Received response from backend!');
+    log('Status Code: ${response.statusCode}');
+    log('Response Body: ${response.body}');
+    // [수정] 성공(200)과 실패 케이스를 나누어 처리
+    if (response.statusCode == 200) {
+      // 성공 시, 정상적으로 응답 본문 반환
+      return jsonDecode(response.body);
+    } else {
+      // 실패 시, 서버가 보낸 구체적인 에러 메시지를 담아 Exception 발생
+      try {
+        final errorBody = jsonDecode(response.body);
+        throw Exception('서버 통신 실패: ${errorBody['message'] ?? '알 수 없는 오류'}');
+      } catch (e) {
+        // 응답 본문이 JSON 형태가 아닐 경우를 대비한 예외 처리
+        throw Exception('서버와 통신 중 오류가 발생했습니다. (상태 코드: ${response.statusCode})');
+      }
+    }
+  }
+
+  // [추가] 카카오 로그아웃 함수
+  Future<void> kakaoLogout() async {
+    try {
+      await UserApi.instance.logout();
+      print('로그아웃 성공, SDK에서 토큰 삭제');
+    } catch (error) {
+      print('로그아웃 실패, SDK에서 토큰 삭제 실패 $error');
+      throw Exception('로그아웃에 실패했습니다.');
+    }
+  }
+
+
 }

@@ -37,6 +37,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   # 🚨 서버 통신을 위해 http 패키지를 추가했습니다.
   http: ^1.2.1
+  flutter_web_auth_2: ^4.1.0
+
+  flutter_secure_storage: ^9.0.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:

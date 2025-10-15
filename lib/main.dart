@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ import 추가
 
 // --- 필요한 파일들을 모두 import 합니다 ---
 import 'config/theme.dart';
@@ -7,8 +8,14 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
 
-void main() {
-  // ✅ 앱이 시작되기 전에 카카오 SDKS 초기화합니다.
+Future<void> main() async {
+  // ✅ runApp 전에 비동기 작업을 수행하려면 반드시 추가해야 합니다.
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ .env 파일을 로드합니다.
+  await dotenv.load(fileName: ".env");
+
+  // ✅ 기존 카카오 SDK를 초기화합니다.
   KakaoSdk.init(
     nativeAppKey: '6cdfe8239c6cf5fdbaf793f4fc9581e3',
   );

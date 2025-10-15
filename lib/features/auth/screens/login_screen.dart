@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../services/auth_service.dart'; // ✅ 1. AuthService 임포트
+
 
 class LoginScreen extends StatefulWidget {
+
   const LoginScreen({super.key});
+
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -13,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -53,6 +58,28 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ 3. 구글 로그인 처리 핸들러 추가
+  Future<void> _handleGoogleLogin() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.signInWithGoogle();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('구글 계정으로 로그인되었습니다.')),
+      );
+      // TODO: 로그인 성공 후 홈 화면으로 이동
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -172,9 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(width: 22),
                   // 구글 로그인 버튼
                   GestureDetector(
-                    onTap: () {
-                      // TODO: 구글 로그인 로직 구현
-                    },
+                    // ✅ onTap 프로퍼티에 _handleGoogleLogin 함수를 직접 연결
+                    onTap: _isLoading ? null : _handleGoogleLogin,
                     child: Image.asset(
                       'assets/images/google_logo.png',
                       width: 70,

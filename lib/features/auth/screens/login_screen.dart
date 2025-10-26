@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,7 +13,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
+  bool _obscureText = true;
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -37,10 +40,18 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // ✅ 토큰 저장
+        await _storage.write(key: 'accessToken', value: data['accessToken']);
+        await _storage.write(key: 'refreshToken', value: data['refreshToken']);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그인 성공!')),
         );
-        // TODO: 홈 화면 이동
+
+        // ✅ 홈 화면으로 이동 (로그인 페이지는 제거)
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F5EC), // theme와 통일
+      backgroundColor: const Color(0xFFF9F5EC),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 60),
@@ -76,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 80),
               TextField(
                 controller: _emailController,
@@ -89,21 +99,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
-
               const SizedBox(height: 13),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscureText,
+                decoration: InputDecoration(
                   hintText: '비밀번호',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 13.0, horizontal: 15.0),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureText ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureText = !_obscureText;
+                      });
+                    },
+                  ),
                 ),
               ),
-
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleLogin,
@@ -122,7 +140,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('로그인'),
               ),
-
               const SizedBox(height: 13),
               ElevatedButton(
                 onPressed: () {
@@ -141,7 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text('회원가입'),
               ),
-
               const SizedBox(height: 7),
               TextButton(
                 onPressed: () {
@@ -153,14 +169,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text('이메일/비밀번호 찾기 >'),
               ),
-
               const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: () {
-                      // TODO: 카카오 로그인 로직 구현
+                      // TODO: 카카오 로그인 로직
                     },
                     child: Image.asset(
                       'assets/images/kakao_logo.png',
@@ -171,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(width: 22),
                   GestureDetector(
                     onTap: () {
-                      // TODO: 구글 로그인 로직 구현
+                      // TODO: 구글 로그인 로직
                     },
                     child: Image.asset(
                       'assets/images/google_logo.png',

@@ -31,11 +31,16 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isCodeVerified = false; // 인증 코드가 확인되었는가?
   bool _isLoading = false; // 로딩 상태
 
+  String _correctCode = '';
+
   // 2. 인증 코드 요청 핸들러
   Future<void> _handleCodeRequest() async {
     setState(() { _isLoading = true; });
     try {
-      await _authService.requestAuthCode(_emailController.text);
+      // AuthService로부터 정답코드 받기
+      final String codeFromServer = await _authService.requestAuthCode(_emailController.text);
+      _correctCode = codeFromServer;
+
       setState(() {
         _isCodeRequested = true;
         _authCodeController.clear(); // 새 요청 시 코드 초기화
@@ -52,17 +57,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // 3. 인증 코드 확인 핸들러
   Future<void> _handleCodeVerify() async {
-    setState(() { _isLoading = true; });
-    try {
-      await _authService.verifyAuthCode(_emailController.text, _authCodeController.text);
-      setState(() { _isCodeVerified = true; });
-      _showSnackBar('이메일 인증이 성공적으로 완료되었습니다.');
-    } catch (e) {
-      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
-      }
+    if (_authCodeController.text.isEmpty) {
+      _showSnackBar('인증 코드를 입력해주세요.');
+      return;
+    }
+
+    // 정답 코드와 로컬에서 비교
+    if (_correctCode.isNotEmpty && _correctCode == _authCodeController.text) {
+      setState(() => _isCodeVerified = true);
+      _showSnackBar('인증이 완료되었습니다. 새 비밀번호를 입력하세요.');
+    } else {
+      _showSnackBar('인증 코드가 올바르지 않습니다.');
     }
   }
 

@@ -7,12 +7,9 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ 이 줄을 추가하세요.
 
-
-
-
 class AuthService {
   // 실제 서버 환경에서는 여기에 Dio 인스턴스 등이 주입될 수 있습니다.
-  final String _apiUrl = 'http://10.0.2.2:8080/api/users'; // 기본 API 경로 설정
+  //final String _apiUrl = 'http://10.0.2.2:8080/api/users'; // 기본 API 경로 설정
   static const String _tempAuthCode = '123456'; // 임시 이메일 인증 코드
   //final String _baseUrl = 'https://nonsusceptible-hyman-periproctal.ngrok-free.dev';
   final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8080';
@@ -64,23 +61,42 @@ class AuthService {
   }
 
   // 1. 이메일 인증 코드를 요청하는 함수
-  Future<bool> requestAuthCode(String email) async {
+  Future<String> requestAuthCode(String email) async {
     final emailRegex = RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$");
     if (email.isEmpty || !emailRegex.hasMatch(email)) {
       // 클라이언트 측 유효성 검사 (실제 환경에서는 예외를 throw하거나 Error 객체를 반환)
       throw Exception('올바른 이메일 주소를 입력해주세요.');
     }
 
-    // TODO: 실제 서버 API 엔드포인트에 맞게 URL 수정 필요 (예: '/request-code')
-    // 현재는 성공했다고 가정하고 true 반환
-    print('이메일 인증 코드 요청: $email');
-    await Future.delayed(const Duration(milliseconds: 500)); // API 지연 시뮬레이션
-    return true;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/password-reset-request'), // 👈 (가정) 회원가입용 코드 발송 API
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        // 🚫 보안 위험: 서버가 보낸 '정답' 코드를 반환합니다.
+        final code = body['verificationCode'];
+        if (code == null) {
+          throw Exception('API 응답에 인증 코드가 없습니다.');
+        }
+        log('[AuthService] 회원가입 코드 요청 성공. Code: $code');
+        return code as String;
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['message'] ?? '인증 코드 요청 실패');
+      }
+    } catch (e) {
+      log('🚨 requestAuthCode 에러: $e');
+      throw Exception('서버 통신 중 오류 발생: ${e.toString()}');
+    }
   }
 
   // 2. 인증 코드를 확인하는 함수
   Future<bool> verifyAuthCode(String email, String code) async {
-    // 정의된 임시 인증 코드(_tempAuthCode)와 사용자가 입력한 코드를 비교합니다.
+     //정의된 임시 인증 코드(_tempAuthCode)와 사용자가 입력한 코드를 비교합니다.
     if (code != _tempAuthCode) { // TODO: 실제 인증 로직으로 대체 필요
       throw Exception('인증 코드가 일치하지 않습니다.');
     }
@@ -96,7 +112,7 @@ class AuthService {
     required String nickname,
   }) async {
     // API 주소
-    const apiUrl = 'http://10.0.2.2:8080/api/auth/signup';
+    final apiUrl = '$_baseUrl/api/auth/signup';
 
     // 서버에 보낼 데이터 (Dart의 Map)
     final signupData = {
@@ -128,10 +144,34 @@ class AuthService {
   }
 
   /// 비밀번호 재설정을 위한 이메일 인증 코드를 요청합니다.
-  Future<void> requestPasswordResetCode(String email) async {
+  Future<String> requestPasswordResetCode(String email) async {
     // TODO: 실제 서버의 '비밀번호 재설정용' 코드 요청 API와 연동해야 합니다.
     print('[AuthService] 비밀번호 재설정 코드 요청: $email');
-    await Future.delayed(const Duration(milliseconds: 500));
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/password-reset-request'), // 👈 (가정) 비밀번호 재설정 코드 발송 API
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        // 🚫 보안 위험: 서버가 보낸 '정답' 코드를 반환합니다.
+        final code = body['verificationCode'];
+        if (code == null) {
+          throw Exception('API 응답에 인증 코드가 없습니다.');
+        }
+        log('[AuthService] 비밀번호 재설정 코드 요청 성공. Code: $code');
+        return code as String;
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['message'] ?? '인증 코드 요청 실패');
+      }
+    } catch (e) {
+      log('🚨 requestPasswordResetCode 에러: $e');
+      throw Exception('서버 통신 중 오류 발생: ${e.toString()}');
+    }
   }
 
   /// 비밀번호 재설정을 위한 인증 코드를 확인합니다.
@@ -153,11 +193,28 @@ class AuthService {
     // --- 백엔드 API 없이 프론트엔드 시연을 위한 임시 코드 ---
     print('[AuthService] 비밀번호 변경 요청 시뮬레이션 시작 (서버 호출 안함)');
 
-    // 마치 서버가 성공적으로 응답한 것처럼 1초간 기다립니다.
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/password/reset'), // 👈 (가정) 최종 비밀번호 변경 API
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'code': code, // 👈 화면(Screen)에서 자체 검증에 성공한 코드를 다시 보냅니다.
+          'newPassword': newPassword,
+        }),
+      );
 
-    // 서버 대신 성공 메시지를 직접 반환합니다.
-    return '비밀번호가 성공적으로 변경되었습니다.';
+      if (response.statusCode == 200) {
+        log('[AuthService] 비밀번호 변경 성공');
+        return '비밀번호가 성공적으로 변경되었습니다.';
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['message'] ?? '비밀번호 변경 실패');
+      }
+    } catch (e) {
+      log('🚨 resetPassword 에러: $e');
+      throw Exception('서버 통신 중 오류 발생: ${e.toString()}');
+    }
 
   }
 
@@ -243,6 +300,4 @@ class AuthService {
       throw Exception('로그아웃에 실패했습니다.');
     }
   }
-
-
 }

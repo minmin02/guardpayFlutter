@@ -1,45 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ import 추가
-
-// --- 필요한 파일들을 모두 import 합니다 ---
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config/theme.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
+import 'features/auth/screens/home_screen.dart';
 
-Future<void> main() async {
-  // ✅ runApp 전에 비동기 작업을 수행하려면 반드시 추가해야 합니다.
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  KakaoSdk.init(nativeAppKey: '6cdfe8239c6cf5fdbaf793f4fc9581e3');
 
-  // ✅ .env 파일을 로드합니다.
-  await dotenv.load(fileName: ".env");
+  // ✅ 토큰 체크 후 적절한 첫 화면 결정
+  final storage = FlutterSecureStorage();
+  final accessToken = await storage.read(key: 'accessToken');
 
-  // ✅ 기존 카카오 SDK를 초기화합니다.
-  KakaoSdk.init(
-    nativeAppKey: '6cdfe8239c6cf5fdbaf793f4fc9581e3',
-  );
-
-  runApp(const MyApp());
+  runApp(MyApp(initialRoute: accessToken != null ? '/home' : '/login'));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'GuardPay App',
-      // ✅ config/theme.dart에서 정의한 테마를 사용합니다.
       theme: appTheme(),
-      // ✅ 앱의 첫 화면을 로그인 화면으로 설정합니다.
-      initialRoute: '/login',
-      // ✅ 여러 화면을 관리하고 쉽게 이동하기 위해 routes 방식을 사용합니다.
+      initialRoute: initialRoute, // ✅ 토큰 존재 여부에 따라 첫 화면 변경
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
         '/reset': (context) => const ResetPasswordScreen(),
+        '/home': (context) => const HomeScreen(), // ✅ 홈 라우트 추가
       },
     );
   }

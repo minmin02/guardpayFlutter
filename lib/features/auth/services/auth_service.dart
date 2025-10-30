@@ -95,10 +95,10 @@ class AuthService {
     required String password,
     required String nickname,
   }) async {
-    // API 주소
+    // ✅ 백엔드 회원가입 API 경로
     const apiUrl = 'http://10.0.2.2:8080/api/auth/signup';
 
-    // 서버에 보낼 데이터 (Dart의 Map)
+    // ✅ 서버에 보낼 JSON 데이터
     final signupData = {
       'email': email,
       'password': password,
@@ -109,23 +109,28 @@ class AuthService {
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(signupData), // 데이터를 JSON 문자열로 인코딩
+        body: jsonEncode(signupData),
       );
 
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes)); // 한글 깨짐 방지
+
+      // ✅ 성공 (200 또는 201)
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('가입 성공 응답: ${response.body}');
-        return '회원가입이 완료되었습니다!';
-      } else {
-        print('가입 실패 응답: ${response.body}');
-        final errorBody = jsonDecode(response.body);
-        // 서버에서 제공하는 오류 메시지 반환
-        return errorBody['message'] ?? '가입에 실패했습니다.';
+        return responseBody['message'] ?? '회원가입이 성공적으로 완료되었습니다.';
       }
+      // ❌ 실패 (400, 409 등)
+      else {
+        print('가입 실패 응답: ${response.body}');
+        throw Exception(responseBody['message'] ?? '회원가입에 실패했습니다.');
+      }
+
     } catch (error) {
       print('가입 요청 실패: $error');
       throw Exception('서버와 통신할 수 없습니다.');
     }
   }
+
 
   /// 비밀번호 재설정을 위한 이메일 인증 코드를 요청합니다.
   Future<void> requestPasswordResetCode(String email) async {

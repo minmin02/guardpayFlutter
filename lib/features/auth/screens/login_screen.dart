@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../services/auth_service.dart'; // ✅ 1. AuthService 임포트
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
-
   const LoginScreen({super.key});
-
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,8 +13,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
-  final AuthService _authService = AuthService();
+  bool _obscureText = true;
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -42,10 +40,18 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // ✅ 토큰 저장
+        await _storage.write(key: 'accessToken', value: data['accessToken']);
+        await _storage.write(key: 'refreshToken', value: data['refreshToken']);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그인 성공!')),
         );
-        // TODO: 홈 화면 이동
+
+        // ✅ 홈 화면으로 이동 (로그인 페이지는 제거)
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,33 +67,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ✅ 3. 구글 로그인 처리 핸들러 추가
-  Future<void> _handleGoogleLogin() async {
-    if (_isLoading) return;
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.signInWithGoogle();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구글 계정으로 로그인되었습니다.')),
-      );
-      // TODO: 로그인 성공 후 홈 화면으로 이동
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Padding(
+      backgroundColor: const Color(0xFFF9F5EC),
+      body: SafeArea(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 60),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -111,24 +96,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
+                  contentPadding:
+                  EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
 
               const SizedBox(height: 13),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscureText,
+                decoration: InputDecoration(
                   hintText: '비밀번호',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 13.0, horizontal: 15.0),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureText ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureText = !_obscureText;
+                      });
+                    },
+                  ),
                 ),
               ),
-
-              const SizedBox(height: 13),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleLogin,
                 style: ElevatedButton.styleFrom(
@@ -139,15 +135,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('로그인'),
               ),
-
               const SizedBox(height: 13),
-              // 회원가입 이동 버튼
               ElevatedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, '/signup');
@@ -160,7 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('회원가입'),
               ),
@@ -172,22 +168,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.black,
-                  textStyle: const TextStyle(
-                    fontSize: 14
-                  )
+                  textStyle: const TextStyle(fontSize: 14),
                 ),
                 child: const Text('이메일/비밀번호 찾기 >'),
               ),
-
-              // 소셜 로그인 버튼 추가
               const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 카카오 로그인 버튼
                   GestureDetector(
                     onTap: () {
-                      // TODO: 카카오 로그인 로직 구현
+                      // TODO: 카카오 로그인 로직
                     },
                     child: Image.asset(
                       'assets/images/kakao_logo.png',
@@ -195,12 +186,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 70,
                     ),
                   ),
-
                   const SizedBox(width: 22),
-                  // 구글 로그인 버튼
                   GestureDetector(
-                    // ✅ onTap 프로퍼티에 _handleGoogleLogin 함수를 직접 연결
-                    onTap: _isLoading ? null : _handleGoogleLogin,
+                    onTap: () {
+                      // TODO: 구글 로그인 로직
+                    },
                     child: Image.asset(
                       'assets/images/google_logo.png',
                       width: 70,

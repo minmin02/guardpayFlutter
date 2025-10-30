@@ -87,6 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               const SizedBox(height: 80),
               TextField(
                 controller: _emailController,
@@ -99,6 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
+
               const SizedBox(height: 13),
               TextField(
                 controller: _passwordController,
@@ -158,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text('회원가입'),
               ),
+
               const SizedBox(height: 7),
               TextButton(
                 onPressed: () {

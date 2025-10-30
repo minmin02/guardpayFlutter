@@ -11,17 +11,29 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // 1. 서비스 인스턴스 초기화
   final _emailController = TextEditingController();
+
   final _passwordController = TextEditingController();
   final _storage = const FlutterSecureStorage();
+
   bool _isLoading = false;
   bool _obscureText = true;
 
-  Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  // 2. 일관된 SnackBar 표시를 위한 유틸리티 함수
+  void _showSnackBar(String message) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이메일과 비밀번호를 모두 입력해주세요.')),
+        SnackBar(content: Text(message)),
       );
+    }
+  }
+
+  // 3. 이메일/비밀번호 로그인 처리
+  Future<void> _handleLogin() async {
+    // 입력 유효성 검사
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showSnackBar('이메일과 비밀번호를 모두 입력해주세요.');
       return;
     }
 
@@ -42,26 +54,20 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // ✅ 토큰 저장
+        // 토큰 저장
         await _storage.write(key: 'accessToken', value: data['accessToken']);
         await _storage.write(key: 'refreshToken', value: data['refreshToken']);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 성공!')),
-        );
+        _showSnackBar('로그인 성공!');
 
-        // ✅ 홈 화면으로 이동 (로그인 페이지는 제거)
+        // 홈 화면으로 이동 (로그인 페이지는 제거)
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         final error = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error['message'] ?? '로그인 실패')),
-        );
+        _showSnackBar('로그인 실패');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서버와 통신할 수 없습니다.')),
-      );
+      _showSnackBar('서버와 통신할 수 없습니다.');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -170,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   foregroundColor: Colors.black,
                   textStyle: const TextStyle(fontSize: 14),
                 ),
-                child: const Text('이메일/비밀번호 찾기 >'),
+                child: const Text('임시 비밀번호 발급받기 >'),
               ),
               const SizedBox(height: 18),
               Row(

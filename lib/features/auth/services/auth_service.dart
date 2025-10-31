@@ -8,8 +8,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  // 환경 변수에서 API 베이스 URL을 가져옴
-  final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8080';
+  // ⬇️ [수정됨] 1. 소셜 로그인용 (ngrok)
+  // ❗️ .env 파일에 API_BASE_URL=https://your-ngrok-url.ngrok-free.dev
+  final String _baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://DEFAULT_NGROK_URL';
+
+  // ⬇️ [수정됨] 2. 폼 회원가입/비번찾기용 (고정 IP)
+  final String _localBaseUrl = 'http://10.0.2.2:8080';
+
   final _secureStorage = const FlutterSecureStorage();
 
   static const String _tempAuthCode = '123456'; // 임시 이메일 인증 코드
@@ -17,10 +22,10 @@ class AuthService {
   /// === 소셜 로그인 (Google) ===
   Future<void> signInWithGoogle() async {
     try {
-      // 1. 스프링 부트의 구글 로그인 시작 URL 설정
+      // 1. 스프링 부트의 구글 로그인 시작 URL 설정 (ngrok 사용)
       final url = Uri.parse('$_baseUrl/oauth2/authorization/google');
 
-      // 2. 웹뷰를 열고, 리디렉션 대기 (콜백 URL scheme: "guardpay")
+      // 2. 웹뷰를 열고, 리디렉션 대기
       final result = await FlutterWebAuth2.authenticate(
         url: url.toString(),
         callbackUrlScheme: "guardpay",
@@ -41,7 +46,6 @@ class AuthService {
         throw Exception('로그인에는 성공했지만 토큰을 받아오지 못했습니다.');
       }
     } on PlatformException catch (e) {
-      // 사용자가 웹뷰를 닫아 로그인을 취소한 경우 처리
       if (e.code == 'CANCELED' || e.code == 'USER_CANCELLED') {
         log('ℹ️ [Google Auth] 사용자에 의해 로그인이 취소되었습니다.');
         return;
@@ -63,14 +67,16 @@ class AuthService {
     }
 
     // TODO: 실제 서버 API 엔드포인트에 맞게 URL 수정 필요 (예: '/request-code')
+    // ❗️[참고] 이 API도 실제로는 고정 IP(_localBaseUrl)를 써야 합니다.
     log('[Email Auth] 인증 코드 요청: $email (시뮬레이션)');
-    await Future.delayed(const Duration(milliseconds: 500)); // API 지연 시뮬레이션
-    return true; // 요청 성공 가정
+    await Future.delayed(const Duration(milliseconds: 500));
+    return true;
   }
 
   // 인증 코드 확인 함수
   Future<bool> verifyAuthCode(String email, String code) async {
     // TODO: 실제 인증 로직으로 대체 필요
+    // ❗️[참고] 이 API도 실제로는 고정 IP(_localBaseUrl)를 써야 합니다.
     if (code != _tempAuthCode) {
       throw Exception('인증 코드가 일치하지 않습니다.');
     }
@@ -85,8 +91,9 @@ class AuthService {
     required String password,
     required String nickname,
   }) async {
-    // 백엔드 회원가입 API 경로
-    final apiUrl = '$_baseUrl/api/auth/signup';
+
+    // ⬇️ [수정됨] 폼 회원가입은 ngrok이 아닌 고정 IP(_localBaseUrl)를 사용합니다.
+    final apiUrl = '$_localBaseUrl/api/auth/signup';
 
     // 서버에 보낼 JSON 데이터
     final signupData = {
@@ -97,12 +104,12 @@ class AuthService {
 
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
+        Uri.parse(apiUrl), // ⬅️ _localBaseUrl이 적용된 apiUrl 사용
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(signupData),
       );
 
-      final responseBody = jsonDecode(utf8.decode(response.bodyBytes)); // 한글 깨짐 방지
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         log('[Signup] 가입 성공 응답: ${response.body}');
@@ -124,7 +131,8 @@ class AuthService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/auth/password-reset-request'),
+        // ⬇️ [수정됨] 비밀번호 찾기도 고정 IP(_localBaseUrl)를 사용합니다.
+        Uri.parse('$_localBaseUrl/api/auth/password-reset-request'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
@@ -156,7 +164,7 @@ class AuthService {
       log('⚠️ [Kakao Auth] 로그아웃 처리 중 에러 발생 (무시): $error');
     }
 
-    // 2. 카카오 SDK로 액세스 토큰 받기
+    // 2. 카카오 SDK로 액세스 토큰 받기 (생략)
     String? kakaoAccessToken;
     if (await isKakaoTalkInstalled()) {
       try {
@@ -188,25 +196,23 @@ class AuthService {
 
     log('🚀 [Kakao Auth] 백엔드 서버로 토큰 전송 시작.');
 
-    // 3. 백엔드 서버로 액세스 토큰 전송
+    // 3. 백엔드 서버로 액세스 토큰 전송 (ngrok 사용)
     final response = await http.post(
       Uri.parse('$_baseUrl/api/auth/kakao'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'accessToken': kakaoAccessToken}),
     );
 
-    // 4. 응답 처리
+    // 4. 응답 처리 (생략)
     log('✅ [Kakao Auth] 서버 응답 Status Code: ${response.statusCode}');
 
     if (response.statusCode == 200) {
-      // 성공 시, 정상적으로 응답 본문 반환
       return jsonDecode(response.body);
     } else {
       try {
         final errorBody = jsonDecode(response.body);
         throw Exception('서버 통신 실패: ${errorBody['message'] ?? '알 수 없는 오류'}');
       } catch (e) {
-        // 응답 본문이 JSON 형태가 아닐 경우를 대비한 예외 처리
         throw Exception('서버와 통신 중 오류가 발생했습니다. (상태 코드: ${response.statusCode})');
       }
     }
@@ -223,3 +229,4 @@ class AuthService {
     }
   }
 }
+

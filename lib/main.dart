@@ -16,7 +16,8 @@ void main() async {
   final storage = FlutterSecureStorage();
   final accessToken = await storage.read(key: 'accessToken');
 
-  runApp(MyApp(initialRoute: accessToken != null ? '/home' : '/login'));
+  runApp(const MyApp(initialRoute: '/login'));
+
 }
 
 class MyApp extends StatelessWidget {

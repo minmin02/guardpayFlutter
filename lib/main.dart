@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// ⬇️ AuthService 임포트 (경로를 프로젝트에 맞게 수정하세요)
+import 'features/auth/services/auth_service.dart'; //
 import 'config/theme.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
@@ -24,12 +26,42 @@ void main() async {
   // 3. Kakao SDK 초기화 (네이티브 앱 키 사용)
   KakaoSdk.init(nativeAppKey: '6cdfe8239c6cf5fdbaf793f4fc9581e3');
 
-  // 4. 저장된 액세스 토큰 확인
-  final storage = FlutterSecureStorage();
+  // 4. 저장된 액세스 토큰과 리프레시 토큰 확인
+  final storage = const FlutterSecureStorage();
   final accessToken = await storage.read(key: 'accessToken');
+  final refreshToken = await storage.read(key: 'refreshToken');
+
+  // ⬇️ [수정된 로직] 토큰 유효성 검사 및 갱신 시도
+  String initialRoute = '/login'; // 기본값은 로그인 화면
+
+  if (accessToken != null && refreshToken != null) {
+    try {
+      final authService = AuthService();
+
+      // Refresh Token을 이용해 Access Token을 갱신하고 저장하는 로직 호출
+      final bool isTokenRefreshed = await authService.checkAndRefreshTokens(refreshToken);
+
+      if (isTokenRefreshed) {
+        // 갱신 성공: 새 토큰 발급 완료, 홈으로 이동
+        log('✅ [Auth Check] 토큰 갱신 성공. 홈 화면으로 이동.');
+        initialRoute = '/home';
+      } else {
+        // 갱신 실패 (Refresh Token도 만료): 로그아웃 처리
+        await storage.deleteAll(); // 저장된 토큰 모두 삭제
+        log('🚨 [Auth Check] Refresh Token 만료 또는 유효하지 않음. 로그인 페이지로 이동.');
+        initialRoute = '/login';
+      }
+    } catch (e) {
+      // 서버 통신 오류 등 예외 발생 시: 로그아웃 처리 후 로그인 페이지로
+      await storage.deleteAll();
+      log('🚨 [Auth Check] 토큰 갱신 중 예외 발생 ($e). 로그인 페이지로 이동.');
+      initialRoute = '/login';
+    }
+  }
+
 
   // 5. 토큰 유무에 따라 초기 화면 결정 후 앱 실행
-  runApp(MyApp(initialRoute: accessToken != null ? '/home' : '/login'));
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
@@ -41,7 +73,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'GuardPay App',
-      theme: appTheme(),
+      // theme: appTheme(), // appTheme()이 정의되어 있다고 가정
       initialRoute: initialRoute, // 초기 라우트 설정
       routes: {
         '/login': (context) => const LoginScreen(),

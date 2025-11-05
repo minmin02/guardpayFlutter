@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // jsonDecode를 사용하기 위해 필요
+import 'package:http/http.dart' as http; // http 사용을 위해 필요
+import 'package:guardpayfront/core/services/storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +16,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
 
   final _passwordController = TextEditingController();
-  final _storage = const FlutterSecureStorage();
+  //final _storage = const FlutterSecureStorage();
+  final _storage = AppStorage.storage; // ✅ 교체
+
 
   bool _isLoading = false;
   bool _obscureText = true;
@@ -52,21 +55,51 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        // ⬇️ [수정] response.body 대신 response.bodyBytes를 UTF-8로 디코딩합니다.
+        final responseBody = utf8.decode(response.bodyBytes);
 
-        // 토큰 저장
-        await _storage.write(key: 'accessToken', value: data['accessToken']);
-        await _storage.write(key: 'refreshToken', value: data['refreshToken']);
+        // ⬇️ [디버그] Flutter가 받은 응답 원본 확인
+        print('✅ [Login Success] 서버 응답 본문 (UTF-8 디코딩): $responseBody');
 
-        _showSnackBar('로그인 성공!');
+        final data = jsonDecode(responseBody); // 디코딩된 문자열을 JSON 객체로 파싱
 
-        // 홈 화면으로 이동 (로그인 페이지는 제거)
-        Navigator.pushReplacementNamed(context, '/home');
+        final accessToken = data['accessToken'];
+        final refreshToken = data['refreshToken'];
+
+        // ⬇️ [디버그] 파싱된 토큰 값 확인
+        print('Access Token from data: $accessToken');
+        print('Refresh Token from data: $refreshToken');
+
+
+        if (accessToken != null && refreshToken != null) {
+          // 토큰 저장
+          await _storage.write(key: 'tokenType', value: 'Bearer');
+          await _storage.write(key: 'accessToken',  value: accessToken);
+          await _storage.write(key: 'refreshToken', value: refreshToken);
+
+// 저장 확인 (중요)
+          final checkA = await _storage.read(key: 'accessToken');
+          final checkR = await _storage.read(key: 'refreshToken');
+          final checkT = await _storage.read(key: 'tokenType');
+
+          print('>>> saved? access=${checkA != null}, refresh=${checkR != null}');
+          _showSnackBar('로그인 성공!');
+          if (!mounted) return;
+          // 홈 화면으로 이동 (로그인 페이지는 제거)
+          Navigator.pushReplacementNamed(context, '/home');
+
+        } else {
+          // 🚨 서버가 토큰을 반환했지만, 필드가 누락된 경우
+          _showSnackBar('로그인은 성공했지만, 토큰 필드(accessToken/refreshToken)가 누락되었습니다. 서버의 응답 구조를 확인해주세요.');
+        }
       } else {
-        final error = jsonDecode(response.body);
-        _showSnackBar('로그인 실패');
+        // 오류 처리
+        // ⬇️ 오류 응답도 UTF-8 디코딩을 시도합니다.
+        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+        _showSnackBar(errorBody['message'] ?? '로그인 실패: 서버 오류');
       }
     } catch (e) {
+      print('🚨 로그인 요청 실패: $e'); // 실제 예외 로깅
       _showSnackBar('서버와 통신할 수 없습니다.');
     } finally {
       setState(() => _isLoading = false);
@@ -75,6 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (UI 부분은 동일) ...
     return Scaffold(
       backgroundColor: const Color(0xFFF9F5EC),
       body: SafeArea(

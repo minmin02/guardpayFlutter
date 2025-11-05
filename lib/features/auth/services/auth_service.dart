@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'; // 카카오 SDK
 import 'dart:developer';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:guardpayfront/core/services/storage.dart'; // ⬅️ 이걸 써야 함
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
@@ -15,8 +15,7 @@ class AuthService {
   // ⬇️ [수정됨] 2. 폼 회원가입/비번찾기용 (고정 IP)
   final String _localBaseUrl = 'http://10.0.2.2:8080';
 
-  final _secureStorage = const FlutterSecureStorage();
-
+  final _secureStorage = AppStorage.storage;
   static const String _tempAuthCode = '123456'; // 임시 이메일 인증 코드
 
   /// === 소셜 로그인 (Google) ===
@@ -218,6 +217,84 @@ class AuthService {
     }
   }
 
+
+  String _mask(String? t) =>
+      (t == null || t.length <= 12) ? '***' : '${t.substring(0, 6)}...${t.substring(t.length - 4)}';
+
+  /// === 토큰 갱신 (Refresh Token) ===
+  // JWT 갱신 API를 호출하고 성공 시 새 토큰을 저장하는 함수
+  Future<bool> checkAndRefreshTokens(String refreshToken) async {
+    final uri = Uri.parse('$_localBaseUrl/api/auth/reissue');
+    print('>>> [AUTH] enter checkAndRefreshTokens (uri: $uri)');
+
+    String? _jwtType(String jwt) {
+      try {
+        final p = jwt.split('.');
+        if (p.length != 3) return null;
+        String norm(String s) => s.replaceAll('-', '+').replaceAll('_', '/')
+            .padRight((s.length + 3) ~/ 4 * 4, '=');
+        final payload = utf8.decode(base64.decode(norm(p[1])));
+        return (jsonDecode(payload)['type'] as String?)?.toLowerCase();
+      } catch (_) { return null; }
+    }
+
+    Future<bool> _apply(http.Response res) async {
+      final bodyStr = utf8.decode(res.bodyBytes);
+      Map<String, dynamic> data = {};
+      try { data = jsonDecode(bodyStr); } catch (_) {}
+
+      String? newAccess  = (data['accessToken']  ?? data['access_token']) as String?;
+      String? newRefresh = (data['refreshToken'] ?? data['refresh_token']) as String?;
+      // 헤더(Bearer)로 access를 줄 수도 있음
+      final hb = res.headers['authorization'];
+      final headerAccess = hb?.replaceFirst(RegExp(r'Bearer\s+', caseSensitive:false), '');
+      newAccess ??= headerAccess;
+
+      // 타입 안전장치
+      if (newAccess  != null && _jwtType(newAccess)  != 'access')  newAccess  = null;
+      if (newRefresh != null && _jwtType(newRefresh) != 'refresh') newRefresh = null;
+
+      if (newAccess == null) return false;
+      await _secureStorage.write(key: 'accessToken', value: newAccess);
+      if (newRefresh != null) {
+        await _secureStorage.write(key: 'refreshToken', value: newRefresh);
+      }
+      return true;
+    }
+
+    try {
+      print('>>> [AUTH] Attempt 1 (Header): Bearer ${_mask(refreshToken)}');
+
+      // 1) 헤더(Bearer refresh) 방식
+      var res = await http.post(uri, headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $refreshToken',
+      });
+      print('>>> [AUTH] Attempt 1 (Header) Result: status=${res.statusCode}, body=${utf8.decode(res.bodyBytes)}');
+
+      if (res.statusCode == 200 && await _apply(res)) return true;
+      print('>>> [AUTH] Attempt 2 (Body): JSON');
+
+      // 2) 바디(JSON) 방식 폴백
+      res = await http.post(uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+      print('>>> [AUTH] Attempt 2 (Body) Result: status=${res.statusCode}, body=${utf8.decode(res.bodyBytes)}');
+
+      if (res.statusCode == 200 && await _apply(res)) return true;
+      print('>>> [AUTH] Both attempts failed. Returning false.');
+
+      return false;
+    } catch (e) {
+      print('>>> [AUTH] Exception caught: $e. Returning false.');
+
+      return false;
+    }
+  }
+
+
+
   // 로그아웃 함수
   Future<void> kakaoLogout() async {
     try {
@@ -228,5 +305,11 @@ class AuthService {
       throw Exception('로그아웃에 실패했습니다.');
     }
   }
+
+
+
+
 }
+
+
 

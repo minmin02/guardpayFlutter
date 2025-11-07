@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'chat_screen.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
-
+import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,7 +14,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ApiService _api = ApiService();
 
   String? accessToken;
-  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -28,37 +25,34 @@ class _HomeScreenState extends State<HomeScreen> {
     final token = await storage.read(key: 'accessToken');
 
     if (token != null) {
-      setState(() {
-        accessToken = token;
-      });
+      setState(() => accessToken = token);
     } else {
       print("🚨 HomeScreen: 저장된 토큰이 없습니다. 로그인 화면으로 이동합니다.");
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: const Color(0xFFF9F5EC),
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 10),
 
-            // 🔹 상단 검색창 + 알림/설정 아이콘 (팀원 디자인 적용)
+            // 🔹 상단 검색창 + 아이콘들
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  // 왼쪽 메뉴 아이콘
                   const Icon(Icons.menu, color: Colors.black87, size: 26),
                   const SizedBox(width: 10),
-
-                  // 검색창 (팀원 디자인: prefixIcon 사용)
-                  const SizedBox(width: 5),
                   Expanded(
                     child: TextField(
                       decoration: InputDecoration(
@@ -68,47 +62,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(8.0),
                           borderSide: BorderSide.none,
                         ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.black54,
-                        ),
+                        prefixIcon:
+                        const Icon(Icons.search, color: Colors.black54),
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 15),
-
-                  // 🔔 알림 아이콘 (팀원 이미지명: alert_icon.png)
-                  Image.asset(
-                    'assets/images/alert_icon.png',
-                    width: 26,
-                    height: 26,
-                    fit: BoxFit.contain,
-                  ),
+                  Image.asset('assets/images/alert_icon.png',
+                      width: 26, height: 26),
                   const SizedBox(width: 12),
-
-                  // ⚙️ 설정 아이콘 (팀원 이미지명: settings_icon.png)
-                  Image.asset(
-                    'assets/images/settings_icon.png',
-                    width: 26,
-                    height: 26,
-                    fit: BoxFit.contain,
-                  ),
+                  Image.asset('assets/images/settings_icon.png',
+                      width: 26, height: 26),
                 ],
               ),
             ),
 
-            // 🔹 상단 노란 배너 (팀원 디자인 적용)
+            // 🔹 상단 배너
             Container(
-              width: 412,
+              width: double.infinity,
               height: 160,
               margin: const EdgeInsets.symmetric(vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: const BoxDecoration(
                 color: Color(0xFFFFF8C6),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 16.0, top: 15.0),
@@ -116,22 +95,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       'assets/images/main_icon.png',
                       width: 80,
                       height: 80,
-                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 25),
                   const Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(right: 13.0, bottom: 11.0),
+                      padding: EdgeInsets.only(right: 13.0),
                       child: Align(
                         alignment: Alignment.bottomRight,
                         child: Text(
                           '안전 송금, 퀴즈로 배우자!\n퀴즈 풀고 포인트를 모아요!',
                           textAlign: TextAlign.end,
                           style: TextStyle(
-                            color: Colors.black87,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                             height: 1.5,
                           ),
                         ),
@@ -144,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 11),
 
-            // 🔹 아래 카드 3개 (기존 로직 유지, 디자인만 변경)
+            // 🔹 카드 3개
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -174,74 +152,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
-            // 🔹 하단 네비게이션바 (기존 로직 유지)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _BottomImageOnlyIcon(
-                    imagePath: 'assets/images/home_icon.png',
-                    isActive: _selectedIndex == 0,
-                    onTap: () => setState(() => _selectedIndex = 0),
-                  ),
-                  _BottomImageOnlyIcon(
-                    imagePath: 'assets/images/AI_icon.png',
-                    isActive: _selectedIndex == 1,
-                    onTap: () {
-                      setState(() => _selectedIndex = 1);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(api: _api),
-                        ),
-                      );
-                    },
-                  ),
-                  _BottomImageOnlyIcon(
-                    imagePath: 'assets/images/shop_icon.png',
-                    isActive: _selectedIndex == 2,
-                    onTap: () => setState(() => _selectedIndex = 2),
-                  ),
-                  _BottomImageOnlyIcon(
-                    imagePath: 'assets/images/money_icon.png',
-                    isActive: _selectedIndex == 3,
-                    onTap: () => setState(() => _selectedIndex = 3),
-                  ),
-                  _BottomImageOnlyIcon(
-                    imagePath: 'assets/images/map_icon.png',
-                    isActive: _selectedIndex == 4,
-                    onTap: () => setState(() => _selectedIndex = 4),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
+      bottomNavigationBar: const BottomNav(selectedIndex: 0), // ✅ 통일된 하단바
     );
   }
 
-  // 🔹 카드 위젯 (팀원 디자인 전면 적용)
   Widget _buildCard({
     required String title,
     required String imagePath,
     required VoidCallback onTap,
   }) {
-    // 팀원의 상수 정의
-    const double imageSize = 50;
-    const double imageHorizontalOffset = 22;
-    const double imageVerticalOffset = 27;
-    const double contentWidth = 350 - (16 * 2);
-    const double titleTopOffset = 35;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -263,24 +185,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Stack(
           children: [
-            // 1. 이미지 (왼쪽 위)
             Positioned(
-              left: imageHorizontalOffset,
-              top: imageVerticalOffset,
-              child: Image.asset(
-                imagePath,
-                width: imageSize,
-                height: imageSize,
-                fit: BoxFit.contain,
-              ),
+              left: 22,
+              top: 27,
+              child: Image.asset(imagePath, width: 50, height: 50),
             ),
-
-            // 2. 제목 (중앙 정렬)
             Positioned(
               left: 35,
-              top: titleTopOffset,
+              top: 35,
               child: SizedBox(
-                width: contentWidth,
+                width: 350 - (16 * 2),
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
@@ -293,32 +207,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// 🔹 하단 네비게이션 이미지 아이콘
-class _BottomImageOnlyIcon extends StatelessWidget {
-  final String imagePath;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _BottomImageOnlyIcon({
-    required this.imagePath,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Image.asset(
-        imagePath,
-        width: 45,
-        height: 45,
-        color: isActive ? null : Colors.black54,
       ),
     );
   }

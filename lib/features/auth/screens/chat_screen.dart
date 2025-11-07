@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart'; // ⬅️ 방금 만드신 API 서비스 임포트
-// 필요한 다른 모델/위젯 임포트
+import '../services/api_service.dart';
 import 'package:guardpayfront/core/services/storage.dart';
+import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart'; // ✅ 통일된 하단바
 
 class ChatScreen extends StatefulWidget {
-
-  final ApiService api;                                   // ✅ 주입받을 필드
+  final ApiService api;
   const ChatScreen({super.key, required this.api});
 
   @override
@@ -13,11 +12,9 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  // 1. 상태 관리를 위한 변수 선언
-
-  final TextEditingController _textController = TextEditingController(); // 입력창 컨트롤러
-  final List<Map<String, String>> _messages = []; // 대화 내용을 저장할 리스트 (사용자/AI 구분)
-  bool _isLoading = false; // AI 응답 대기 상태
+  final TextEditingController _textController = TextEditingController();
+  final List<Map<String, String>> _messages = [];
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -25,65 +22,97 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  // 2. 메시지 전송 로직
   void _handleSubmitted(String text) async {
     if (text.isEmpty || _isLoading) return;
 
     _textController.clear();
-
-    // 사용자 메시지를 목록에 추가
     setState(() {
       _messages.insert(0, {'sender': 'user', 'text': text});
       _isLoading = true;
     });
 
     try {
-
-      print('>>> [UI] call sendChatMessage("$text")');
-
-      // 3. API 서비스 호출 (여기서 서버/Gemini와 통신)
       final aiResponse = await widget.api.sendChatMessage(text);
-      print('>>> [UI] sendChatMessage returned: ${aiResponse.substring(0, aiResponse.length > 60 ? 60 : aiResponse.length)}');
-
-      // AI 응답을 목록에 추가
       setState(() {
         _messages.insert(0, {'sender': 'ai', 'text': aiResponse});
       });
     } catch (e) {
-      print('>>> [UI] exception: $e');
-
-      // 오류 메시지 표시
       setState(() {
-        _messages.insert(0, {'sender': 'ai', 'text': '죄송합니다. 오류가 발생했습니다: $e'});
+        _messages.insert(0, {
+          'sender': 'ai',
+          'text': '죄송합니다. 오류가 발생했습니다: $e'
+        });
       });
     } finally {
-
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  // 4. 입력창 위젯
   Widget _buildTextComposer() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: Colors.white,
       child: Row(
         children: [
-          Flexible(
+          Expanded(
             child: TextField(
               controller: _textController,
-              onSubmitted: _handleSubmitted, // 엔터 키를 누를 때 실행
-              decoration: const InputDecoration.collapsed(hintText: '궁금한 금융 질문을 입력하세요'),
+              onSubmitted: _handleSubmitted,
+              decoration: InputDecoration(
+                hintText: 'GuardAI에게 물어보세요',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF3F3F3),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
             ),
           ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4.0),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            backgroundColor: const Color(0xFF7FB77E),
             child: IconButton(
-              icon: const Icon(Icons.send),
+              icon: const Icon(Icons.arrow_upward, color: Colors.white),
               onPressed: _isLoading
-                  ? null // 로딩 중이면 버튼 비활성화
+                  ? null
                   : () => _handleSubmitted(_textController.text),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatMessage(Map<String, String> message) {
+    final bool isUser = message['sender'] == 'user';
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment:
+        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!isUser)
+            const CircleAvatar(
+              backgroundColor: Color(0xFF7FB77E),
+              child: Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+            ),
+          if (!isUser) const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? const Color(0xFFF8F8F8)
+                    : const Color(0xFFFFFBF5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                message['text']!,
+                style: const TextStyle(fontSize: 15, height: 1.4),
+              ),
             ),
           ),
         ],
@@ -94,73 +123,47 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('금융 AI 챗봇'),
-        backgroundColor: Theme.of(context).primaryColor,
-      ),
-      body: Column(
-        children: [
-          // 5. 로딩 인디케이터 (AI 응답 대기 시)
-          if (_isLoading)
-            const LinearProgressIndicator(),
-
-          // 6. 대화 목록 (ListView)
-          Flexible(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              reverse: true, // 최신 메시지가 아래로 오도록 설정
-              itemBuilder: (_, int index) => _buildChatMessage(_messages[index]),
-              itemCount: _messages.length,
+      backgroundColor: const Color(0xFFF9F5EC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 40, bottom: 16),
+              child: Column(
+                children: const [
+                  Text(
+                    'GuardAI',
+                    style: TextStyle(
+                      fontSize: 50,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF7FB77E),
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          offset: Offset(1, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-
-          const Divider(height: 1.0),
-
-          // 7. 입력창
-          Container(
-            decoration: BoxDecoration(color: Theme.of(context).cardColor),
-            child: _buildTextComposer(),
-          ),
-        ],
+            if (_isLoading)
+              const LinearProgressIndicator(color: Color(0xFF7FB77E)),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(8),
+                reverse: true,
+                itemBuilder: (_, i) => _buildChatMessage(_messages[i]),
+                itemCount: _messages.length,
+              ),
+            ),
+            _buildTextComposer(),
+          ],
+        ),
       ),
+      bottomNavigationBar: const BottomNav(selectedIndex: 1), // ✅ 통일된 하단바
     );
   }
-
-  // 8. 개별 메시지 버블 위젯
-  Widget _buildChatMessage(Map<String, String> message) {
-    final bool isUser = message['sender'] == 'user';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10.0),
-      child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // AI 메시지일 때만 아바타 (아이콘) 표시
-          if (!isUser)
-            const Padding(
-              padding: EdgeInsets.only(right: 8.0),
-              child: CircleAvatar(child: Text('AI')),
-            ),
-
-          // 메시지 버블
-          Container(
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: isUser ? Colors.blueAccent : Colors.grey[200],
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Text(
-              message['text']!,
-              style: TextStyle(color: isUser ? Colors.white : Colors.black87),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
 }

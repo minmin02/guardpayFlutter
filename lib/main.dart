@@ -11,6 +11,11 @@ import 'features/auth/screens/signup_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
 import 'features/auth/screens/home_screen.dart';
 
+// ✅ 영상 관련 import 추가
+import 'package:guardpayfront/features/video/screens/video_category_screen.dart';
+import 'package:guardpayfront/features/video/screens/video_list_screen.dart';
+import 'package:guardpayfront/features/video/screens/video_player_screen.dart';
+
 void main() async {
   // 1. Flutter 엔진과 위젯 바인딩 초기화 (비동기 작업 이전에 필수)
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +78,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'GuardPay App',
+
       // theme: appTheme(), // appTheme()이 정의되어 있다고 가정
       initialRoute: initialRoute, // 초기 라우트 설정
       routes: {
@@ -80,6 +86,30 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/reset': (context) => const ResetPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        // ✅ 예방 영상 관련 라우트 (오류 수정 완료)
+        '/video': (context) => VideoCategoryScreen(),
+        '/videoList': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final int categoryId = args['categoryId'];
+          final String categoryName = args['categoryName'];
+
+          return VideoListScreen(
+            categoryId: categoryId,
+            categoryName: categoryName,
+          );
+        },
+
+        '/videoPlayer': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final int videoId = args['videoId'];
+          final String title = args['title']; // ✅ title 받기
+
+          return VideoPlayerScreen(
+            videoId: videoId,
+            title: title, // ✅ title 전달
+          );
+        },
+
       },
     );
   }

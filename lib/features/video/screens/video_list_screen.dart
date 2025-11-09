@@ -50,7 +50,21 @@ class _VideoListScreenState extends State<VideoListScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('영상 데이터를 불러오지 못했습니다.'));
+            print('❌ Error: ${snapshot.error}');
+            print('❌ StackTrace: ${snapshot.stackTrace}');
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('영상 데이터를 불러오지 못했습니다.'),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${snapshot.error}',
+                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                ],
+              ),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('등록된 영상이 없습니다.'));

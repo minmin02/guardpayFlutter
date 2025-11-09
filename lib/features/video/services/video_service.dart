@@ -16,14 +16,40 @@ class VideoService {
     }
   }
 
-  /// ✅ [2] 카테고리별 영상 목록
+  /// ✅ [2] 카테고리별 영상 목록 (수정됨)
   Future<List<PreventionVideo>> fetchVideosByCategory(int categoryId) async {
-    final response = await http.get(Uri.parse('$baseUrl/categories/$categoryId'));
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-      return jsonList.map((v) => PreventionVideo.fromJson(v)).toList();
-    } else {
-      throw Exception('카테고리별 영상 조회 실패 (${response.statusCode})');
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/categories/$categoryId'));
+
+      print('📡 Response Status: ${response.statusCode}');
+      print('📡 Response Body: ${utf8.decode(response.bodyBytes)}');
+
+      if (response.statusCode == 200) {
+        final decodedBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+        // 🔍 응답 타입 확인
+        print('🔍 Response Type: ${decodedBody.runtimeType}');
+
+        // ✅ Map인 경우 'videos' 키에서 배열 추출
+        if (decodedBody is Map<String, dynamic>) {
+          // 서버가 { "videos": [...] } 형태로 반환하는 경우
+          final List<dynamic> jsonList = decodedBody['videos'] as List;
+          return jsonList.map((v) => PreventionVideo.fromJson(v)).toList();
+        }
+        // ✅ List인 경우 그대로 파싱
+        else if (decodedBody is List) {
+          return decodedBody.map((v) => PreventionVideo.fromJson(v)).toList();
+        }
+        else {
+          throw Exception('예상치 못한 응답 형식: ${decodedBody.runtimeType}');
+        }
+      } else {
+        throw Exception('카테고리별 영상 조회 실패 (${response.statusCode})');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error in fetchVideosByCategory: $e');
+      print('❌ StackTrace: $stackTrace');
+      rethrow;
     }
   }
 

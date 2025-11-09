@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'chat_screen.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
 import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -12,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final storage = AppStorage.storage;
   final ApiService _api = ApiService();
+  int _selectedIndex = 0;
 
   String? accessToken;
 
@@ -35,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNav(selectedIndex: 0), // ✅ 통일된 하단바
+      bottomNavigationBar: const BottomNav(selectedIndex: 0),
     );
   }
 

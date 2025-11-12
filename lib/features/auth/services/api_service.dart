@@ -1,16 +1,15 @@
-// ApiService.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:guardpayfront/core/services/storage.dart';
 import 'auth_service.dart';
-import 'dart:developer'; // 👈 print 대신 log를 사용하기 위해 추가 (권장)
+import 'dart:developer';
 
 class ApiService {
   final storage = AppStorage.storage;
   final AuthService _authService = AuthService();
-  // ❗️ 안드로이드 에뮬레이터 기준. 실제 기기 테스트 시 PC의 IP로 변경 필요
   final String _baseUrl = "http://10.0.2.2:8080";
 
+  // JWT 토큰 타입 추출
   String? _jwtType(String jwt) {
     try {
       final parts = jwt.split('.');
@@ -19,146 +18,154 @@ class ApiService {
           s.replaceAll('-', '+').replaceAll('_', '/').padRight((s.length + 3) ~/ 4 * 4, '=');
       final payload = utf8.decode(base64.decode(norm(parts[1])));
       final obj = jsonDecode(payload) as Map<String, dynamic>;
-      return (obj['type'] as String?)?.toLowerCase(); // "access" | "refresh"
+      return (obj['type'] as String?)?.toLowerCase();
     } catch (_) {
       return null;
     }
   }
 
+  // 토큰 마스킹
   String _mask(String? t) =>
       (t == null || t.length <= 12) ? '***' : '${t.substring(0, 6)}...${t.substring(t.length - 4)}';
 
+  // ✅ 새 access 토큰을 마지막에 덮는 헬퍼
+  Map<String, String> _mergeHeadersWithAuth(Map<String, String>? base, String newAccess) {
+    final merged = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...?base,
+    };
+    merged['Authorization'] = 'Bearer $newAccess';
+    return merged;
+  }
+
+  // ✅ 공통 GET
+  Future<Map<String, dynamic>?> get(String endpoint, {Map<String, String>? headers}) async {
+    try {
+      final url = Uri.parse('$_baseUrl$endpoint');
+      log('>>> [GET] Request to: $url');
+
+      var response = await http.get(
+        url,
+        headers: _mergeHeadersWithAuth(headers, (await storage.read(key: 'accessToken')) ?? ''),
+      );
+
+      if (response.statusCode == 401) {
+        log('>>> [GET] Got 401 → try refresh');
+        final refresh = await storage.read(key: 'refreshToken');
+        if (refresh != null && await _authService.checkAndRefreshTokens(refresh)) {
+          final newAccess = await storage.read(key: 'accessToken');
+          log('>>> [GET] Token refreshed, retrying with new access');
+          response = await http.get(url, headers: _mergeHeadersWithAuth(headers, newAccess!));
+        }
+      }
+
+      final body = utf8.decode(response.bodyBytes);
+      log('>>> [GET] Status: ${response.statusCode}, Body: $body');
+      return json.decode(body);
+    } catch (e) {
+      log('>>> [GET] Exception: $e');
+      return null;
+    }
+  }
+
+  // ✅ 공통 PUT
+  Future<Map<String, dynamic>?> put(String endpoint,
+      {Map<String, dynamic>? data, Map<String, String>? headers}) async {
+    try {
+      final url = Uri.parse('$_baseUrl$endpoint');
+      var access = await storage.read(key: 'accessToken');
+      var response = await http.put(url,
+          headers: _mergeHeadersWithAuth(headers, access ?? ''),
+          body: json.encode(data));
+
+      if (response.statusCode == 401) {
+        log('>>> [PUT] Got 401 → try refresh');
+        final refresh = await storage.read(key: 'refreshToken');
+        if (refresh != null && await _authService.checkAndRefreshTokens(refresh)) {
+          final newAccess = await storage.read(key: 'accessToken');
+          log('>>> [PUT] Token refreshed, retrying with new access');
+          response = await http.put(url,
+              headers: _mergeHeadersWithAuth(headers, newAccess!), body: json.encode(data));
+        }
+      }
+
+      final body = utf8.decode(response.bodyBytes);
+      log('>>> [PUT] Status: ${response.statusCode}, Body: $body');
+      return json.decode(body);
+    } catch (e) {
+      log('>>> [PUT] Exception: $e');
+      return null;
+    }
+  }
+
+  // ✅ 공통 PATCH
+  Future<Map<String, dynamic>?> patch(String endpoint,
+      {Map<String, dynamic>? data, Map<String, String>? headers}) async {
+    try {
+      final url = Uri.parse('$_baseUrl$endpoint');
+      var access = await storage.read(key: 'accessToken');
+      var response = await http.patch(url,
+          headers: _mergeHeadersWithAuth(headers, access ?? ''),
+          body: json.encode(data));
+
+      if (response.statusCode == 401) {
+        log('>>> [PATCH] Got 401 → try refresh');
+        final refresh = await storage.read(key: 'refreshToken');
+        if (refresh != null && await _authService.checkAndRefreshTokens(refresh)) {
+          final newAccess = await storage.read(key: 'accessToken');
+          log('>>> [PATCH] Token refreshed, retrying with new access');
+          response = await http.patch(url,
+              headers: _mergeHeadersWithAuth(headers, newAccess!), body: json.encode(data));
+        }
+      }
+
+      final body = utf8.decode(response.bodyBytes);
+      log('>>> [PATCH] Status: ${response.statusCode}, Body: $body');
+      return json.decode(body);
+    } catch (e) {
+      log('>>> [PATCH] Exception: $e');
+      return null;
+    }
+  }
+
+  // ✅ Chat용 (기존 그대로 유지)
   Future<http.Response> _executeApiCall(String token, String message) async {
     final uri = Uri.parse('$_baseUrl/api/chat/financial-advice');
     final body = jsonEncode({'prompt': message});
-
     log('>> [CHAT:req] POST $uri');
-    log('>> [CHAT:req] Authorization: Bearer ${_mask(token)} (type=${_jwtType(token)})');
-    log('>> [CHAT:req] Body: $body');
-
-    final res = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: body,
-    );
-
-    // ✅ UTF-8 디코딩을 여기서 한 번만 하도록 통일
-    final responseBody = utf8.decode(res.bodyBytes);
+    log('>> [CHAT:req] Authorization: Bearer ${_mask(token)}');
+    final res = await http.post(uri,
+        headers: _mergeHeadersWithAuth({'Authorization': 'Bearer $token'}, token), body: body);
     log('>> [CHAT:res] status=${res.statusCode}');
-    log('>> [CHAT:res] headers=${res.headers}');
-    log('>> [CHAT:res] body=$responseBody');
-
-    return res; // response 객체 자체를 반환 (bodyBytes를 포함)
+    return res;
   }
 
   Future<String> sendChatMessage(String message) async {
-    log('>>> [API] enter sendChatMessage: "$message"');
-
+    log('>>> [API] enter sendChatMessage');
     String? access = await storage.read(key: 'accessToken');
     String? refresh = await storage.read(key: 'refreshToken');
 
-    log('>>> [API] loaded tokens: access=${_mask(access)} type=${access==null?null:_jwtType(access)} '
-        '/ refresh=${_mask(refresh)} type=${refresh==null?null:_jwtType(refresh)}');
-
-    // access가 없고 refresh가 있으면 먼저 갱신 시도
     if (access == null && refresh != null) {
-      log('>>> [API] access is null, try refresh with refresh=${_mask(refresh)}');
       final ok = await _authService.checkAndRefreshTokens(refresh);
-      log('>>> [API] refresh result: $ok');
-      if (ok) {
-        access = await storage.read(key: 'accessToken');
-        log('>>> [API] new access after refresh: ${_mask(access)} type=${access==null?null:_jwtType(access)}');
+      if (ok) access = await storage.read(key: 'accessToken');
+    }
+
+    if (access == null) return "로그인이 필요합니다.";
+
+    var res = await _executeApiCall(access, message);
+    if (res.statusCode == 401 && refresh != null) {
+      if (await _authService.checkAndRefreshTokens(refresh)) {
+        final newAccess = await storage.read(key: 'accessToken');
+        res = await _executeApiCall(newAccess!, message);
       }
     }
 
-    if (access == null) {
-      log('>>> [API] early return: access still null -> "로그인이 필요합니다."');
-      return "로그인이 필요합니다.";
+    final body = utf8.decode(res.bodyBytes);
+    if (res.statusCode == 200) {
+      final map = jsonDecode(body);
+      return map['text'] ?? "AI 응답 파싱 실패";
     }
-
-    final aType = _jwtType(access);
-    if (aType != null && aType != 'access') {
-      log('>>> [API] guard: access.type != access (type=$aType)');
-      if (refresh == null) {
-        log('>>> [API] no refresh -> deleteAll & return');
-        await storage.deleteAll();
-        return "세션이 만료되었습니다. 다시 로그인해주세요.";
-      }
-      final ok = await _authService.checkAndRefreshTokens(refresh);
-      log('>>> [API] refresh-by-guard result: $ok');
-      if (!ok) {
-        await storage.deleteAll();
-        return "세션이 만료되었습니다. 다시 로그인해주세요.";
-      }
-      access = await storage.read(key: 'accessToken');
-      log('>>> [API] access after guard-refresh: ${_mask(access)} type=${access==null?null:_jwtType(access)}');
-      if (access == null || _jwtType(access) != 'access') {
-        await storage.deleteAll();
-        return "세션이 만료되었습니다. 다시 로그인해주세요.";
-      }
-    }
-
-    log('>>> [API] call _executeApiCall with access=${_mask(access)}');
-    http.Response response = await _executeApiCall(access, message);
-
-    if (response.statusCode == 401) {
-      log('>>> [API] got 401, try refresh & retry');
-      final currentRefresh = await storage.read(key: 'refreshToken');
-      if (currentRefresh != null) {
-        final refreshSuccess = await _authService.checkAndRefreshTokens(currentRefresh);
-        log('>>> [API] refresh-on-401 result: $refreshSuccess');
-        if (refreshSuccess) {
-          final newAccess = await storage.read(key: 'accessToken');
-          log('>>> [API] newAccess after 401-refresh: ${_mask(newAccess)} type=${newAccess==null?null:_jwtType(newAccess)}');
-          if (newAccess != null && _jwtType(newAccess) == 'access') {
-            response = await _executeApiCall(newAccess, message);
-          } else {
-            await storage.deleteAll();
-            return "세션이 만료되었습니다. 다시 로그인해주세요.";
-          }
-        } else {
-          await storage.deleteAll();
-          return "세션이 만료되었습니다. 다시 로그인해주세요.";
-        }
-      } else {
-        await storage.delete(key: 'accessToken');
-        return "세션이 만료되었습니다. 다시 로그인해주세요.";
-      }
-    }
-
-    // ✅ 응답 본문을 미리 디코딩
-    final String responseBody = utf8.decode(response.bodyBytes);
-    log('>>> [API] final status: ${response.statusCode}');
-
-    if (response.statusCode == 200) {
-      try {
-        // ✅ [수정] response.bodyBytes 대신 미리 디코딩한 responseBody 사용
-        final map = jsonDecode(responseBody) as Map<String, dynamic>;
-
-        // ✅ [수정] 서버가 반환하는 JSON 키인 'text'를 사용합니다.
-        final text = map['text'] as String?;
-
-        if (text != null) {
-          log('>>> [API] parsed text ok (${text.length} chars)');
-          return text;
-        } else {
-          log('>>> [API] parse error: "text" key is null or missing');
-          log('>>> [API] raw response: $responseBody');
-          return 'AI 응답 파싱 실패: "text" 키를 찾을 수 없습니다.';
-        }
-
-      } catch (e) {
-        log('>>> [API] parse error: $e');
-        log('>>> [API] raw response: $responseBody');
-        return "AI 응답 파싱 실패: $e";
-      }
-    } else {
-      log('>>> [API] non-200: ${response.statusCode} / $responseBody');
-      return "오류가 발생했습니다: ${response.statusCode} / $responseBody";
-    }
+    return "오류: ${res.statusCode} / $body";
   }
 }

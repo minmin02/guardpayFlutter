@@ -6,6 +6,7 @@ import 'package:guardpayfront/features/auth/screens/home_screen.dart';
 import 'package:guardpayfront/features/video/screens/video_category_screen.dart';
 import 'package:guardpayfront/features/video/screens/video_list_screen.dart';
 import 'package:guardpayfront/features/video/screens/video_player_screen.dart';
+import 'package:guardpayfront/features/member/screens/mypage_screen.dart';  // ✅ 추가
 
 Route<dynamic> generateRoute(RouteSettings settings) {
   switch (settings.name) {
@@ -21,6 +22,9 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     case '/home':
       return MaterialPageRoute(builder: (_) => const HomeScreen());
 
+    case '/mypage':
+      return MaterialPageRoute(builder: (_) => const MypageScreen());
+
     case '/video':
       return MaterialPageRoute(builder: (_) => VideoCategoryScreen());
 
@@ -28,8 +32,8 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       final args = settings.arguments as Map<String, dynamic>;
       return MaterialPageRoute(
         builder: (_) => VideoListScreen(
-          categoryId: args['categoryId'],   // ✅ 추가
-          categoryName: args['categoryName'], // ✅ 추가
+          categoryId: args['categoryId'],
+          categoryName: args['categoryName'],
         ),
       );
 
@@ -37,8 +41,8 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       final args = settings.arguments as Map<String, dynamic>;
       return MaterialPageRoute(
         builder: (_) => VideoPlayerScreen(
-          videoId: args['videoId'],  // ✅ 추가
-          title: args['title'],      // ✅ 추가
+          videoId: args['videoId'],
+          title: args['title'],
         ),
       );
 

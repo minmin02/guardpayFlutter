@@ -16,6 +16,9 @@ import 'package:guardpayfront/features/video/screens/video_category_screen.dart'
 import 'package:guardpayfront/features/video/screens/video_list_screen.dart';
 import 'package:guardpayfront/features/video/screens/video_player_screen.dart';
 
+// ✅ 마이페이지 import 추가
+import 'package:guardpayfront/features/member/screens/mypage_screen.dart';
+
 void main() async {
   // 1. Flutter 엔진과 위젯 바인딩 초기화 (비동기 작업 이전에 필수)
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +89,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/reset': (context) => const ResetPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/mypage': (context) => const MypageScreen(), // ✅ 마이페이지 추가
         // ✅ 예방 영상 관련 라우트 (오류 수정 완료)
         '/video': (context) => VideoCategoryScreen(),
         '/videoList': (context) {

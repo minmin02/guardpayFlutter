@@ -1,6 +1,8 @@
 // ApiService.dart
 import 'dart:convert';
+import 'dart:io'; // ✅ File 타입 사용을 위해 추가
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser; // ✅ MediaType 사용을 위해 추가
 import 'package:guardpayfront/core/services/storage.dart';
 import 'auth_service.dart';
 import 'dart:developer'; // 👈 print 대신 log를 사용하기 위해 추가 (권장)
@@ -53,6 +55,210 @@ class ApiService {
     log('>> [CHAT:res] body=$responseBody');
 
     return res; // response 객체 자체를 반환 (bodyBytes를 포함)
+  }
+
+  // ✅ 공통 HTTP 요청 메서드 - GET
+  Future<Map<String, dynamic>?> get(
+      String endpoint, {
+        Map<String, String>? headers,
+      }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      log('>> [GET] $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...?headers,
+        },
+      );
+
+      final responseBody = utf8.decode(response.bodyBytes);
+      log('>> [GET:res] status=${response.statusCode}');
+      log('>> [GET:res] body=$responseBody');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      } else {
+        log('>> [GET:error] ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      log('>> [GET:exception] $e');
+      return null;
+    }
+  }
+
+  // ✅ 공통 HTTP 요청 메서드 - PUT
+  Future<Map<String, dynamic>?> put(
+      String endpoint, {
+        Map<String, dynamic>? data,
+        Map<String, String>? headers,
+      }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      final body = data != null ? jsonEncode(data) : null;
+
+      log('>> [PUT] $uri');
+      log('>> [PUT:body] $body');
+
+      final response = await http.put(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...?headers,
+        },
+        body: body,
+      );
+
+      final responseBody = utf8.decode(response.bodyBytes);
+      log('>> [PUT:res] status=${response.statusCode}');
+      log('>> [PUT:res] body=$responseBody');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      } else {
+        log('>> [PUT:error] ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      log('>> [PUT:exception] $e');
+      return null;
+    }
+  }
+
+  // ✅ 공통 HTTP 요청 메서드 - PATCH
+  Future<Map<String, dynamic>?> patch(
+      String endpoint, {
+        Map<String, dynamic>? data,
+        Map<String, String>? headers,
+      }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      final body = data != null ? jsonEncode(data) : null;
+
+      log('>> [PATCH] $uri');
+      log('>> [PATCH:body] $body');
+
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...?headers,
+        },
+        body: body,
+      );
+
+      final responseBody = utf8.decode(response.bodyBytes);
+      log('>> [PATCH:res] status=${response.statusCode}');
+      log('>> [PATCH:res] body=$responseBody');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      } else {
+        log('>> [PATCH:error] ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      log('>> [PATCH:exception] $e');
+      return null;
+    }
+  }
+
+  // ✅ Multipart 이미지 업로드 메서드 (MIME 타입 명시)
+  Future<Map<String, dynamic>?> uploadImage(
+      String endpoint,
+      File imageFile, {
+        Map<String, String>? headers,
+      }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      log('>> [MULTIPART] $uri');
+
+      var request = http.MultipartRequest('PUT', uri);
+
+      // 헤더 추가
+      if (headers != null) {
+        request.headers.addAll(headers);
+      }
+
+      // ✅ 파일 확장자에 따라 MIME 타입 결정
+      String mimeType = 'image/jpeg'; // 기본값
+      String fileName = imageFile.path.split('/').last.toLowerCase();
+
+      if (fileName.endsWith('.png')) {
+        mimeType = 'image/png';
+      } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+        mimeType = 'image/jpeg';
+      } else if (fileName.endsWith('.gif')) {
+        mimeType = 'image/gif';
+      } else if (fileName.endsWith('.webp')) {
+        mimeType = 'image/webp';
+      }
+
+      log('>> [MULTIPART:mimeType] $mimeType');
+
+      // ✅ 이미지 파일 추가 (MIME 타입 명시)
+      var multipartFile = http.MultipartFile.fromBytes(
+        'profileImage',
+        await imageFile.readAsBytes(),
+        filename: 'profile.${fileName.split('.').last}',
+        contentType: http_parser.MediaType.parse(mimeType),
+      );
+      request.files.add(multipartFile);
+
+      log('>> [MULTIPART:file] ${imageFile.path}');
+      log('>> [MULTIPART:contentType] ${multipartFile.contentType}');
+
+      // 요청 전송
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      final responseBody = utf8.decode(response.bodyBytes);
+      log('>> [MULTIPART:res] status=${response.statusCode}');
+      log('>> [MULTIPART:res] body=$responseBody');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(responseBody) as Map<String, dynamic>;
+      } else {
+        log('>> [MULTIPART:error] ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      log('>> [MULTIPART:exception] $e');
+      return null;
+    }
+  }
+
+  // ✅ DELETE 메서드
+  Future<bool> delete(
+      String endpoint, {
+        Map<String, String>? headers,
+      }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$endpoint');
+      log('>> [DELETE] $uri');
+
+      final response = await http.delete(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...?headers,
+        },
+      );
+
+      log('>> [DELETE:res] status=${response.statusCode}');
+
+      return response.statusCode == 204 || response.statusCode == 200;
+    } catch (e) {
+      log('>> [DELETE:exception] $e');
+      return false;
+    }
   }
 
   Future<String> sendChatMessage(String message) async {

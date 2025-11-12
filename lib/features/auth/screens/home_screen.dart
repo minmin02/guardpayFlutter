@@ -4,6 +4,7 @@ import 'chat_screen.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
 import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
+import 'package:guardpayfront/features/auth/screens/mypage_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -74,8 +75,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   Image.asset('assets/images/alert_icon.png',
                       width: 26, height: 26),
                   const SizedBox(width: 12),
-                  Image.asset('assets/images/settings_icon.png',
-                      width: 26, height: 26),
+                  // ✅ 톱니바퀴 아이콘을 GestureDetector로 감싸서 마이페이지로 이동
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, '/mypage');
+                    },
+                    child: Image.asset('assets/images/settings_icon.png',
+                        width: 26, height: 26),
+                  ),
                 ],
               ),
             ),

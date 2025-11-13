@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: '역량 진단 시작하기',
                       imagePath: 'assets/images/checkBox_icon.png',
                       onTap: () {
-                        Navigator.pushNamed(context, '/abilityTest');
+                        Navigator.pushNamed(context, '/assessment');
                       },
                     ),
                     _buildCard(

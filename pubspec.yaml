@@ -11,19 +11,21 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # 🔹 외부 패키지들
   flutter_web_auth_2: ^4.1.0
   flutter_dotenv: ^5.1.0
   kakao_flutter_sdk_user: ^1.9.1+2
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  # 🚨 서버 통신을 위해 http 패키지를 추가했습니다.
   http: ^1.2.1
   flutter_secure_storage: ^9.0.0
   cached_network_image: ^3.3.1
   youtube_player_flutter: ^9.1.3
   flutter_inappwebview: ^6.0.0-beta.26
-  image_picker: ^1.0.4
+
+  # ✅ 이미지 선택 관련 패키지 (갤러리/카메라)
+  image_picker: ^1.1.2
+
+  # ✅ 파일 경로 및 저장 관련
   path_provider: ^2.1.1
 
 dev_dependencies:
@@ -33,7 +35,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
     - .env

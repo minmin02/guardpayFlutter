@@ -10,6 +10,8 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
 import 'features/auth/screens/home_screen.dart';
+import 'features/assessment/screens/assessment_screen.dart';
+
 import 'features/auth/screens/mypage_screen.dart';
 // ✅ 영상 관련 import 추가
 import 'package:guardpayfront/features/video/screens/video_category_screen.dart';
@@ -86,6 +88,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/reset': (context) => const ResetPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/assessment': (context) => const AssessmentScreen(),
         '/mypage': (context) => const MypageScreen(),
         // ✅ 예방 영상 관련 라우트 (오류 수정 완료)
         '/video': (context) => VideoCategoryScreen(),

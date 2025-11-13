@@ -84,7 +84,7 @@ class AssessmentService {
     // 2-1. API가 요구하는 'answers' 리스트 생성
     List<Map<String, dynamic>> answers = submissionData.map((data) {
       return {
-        'quizId': data['quizId'] as int,
+        'quizID': data['quizId'] as int,
         // API는 'selectedAnswer'를 숫자로 받으므로 String을 int로 변환
         'selectedAnswer': int.parse(data['userAnswer'] as String),
       };
@@ -112,7 +112,7 @@ class AssessmentService {
       }),
     );
 
-    if (response.statusCode == 201) { // 201 Created
+    if (response.statusCode == 201 || response.statusCode == 200) { // 201 Created
       final jsonResponse = json.decode(utf8.decode(response.bodyBytes));
       // 응답에서 historyId 추출
       final int historyId = jsonResponse['data']['historyId'] as int? ?? 0;
@@ -120,7 +120,8 @@ class AssessmentService {
         throw Exception('응답에서 historyId를 찾을 수 없습니다.');
       }
       return historyId;
-    } else {
+    }
+    else {
       throw Exception('퀴즈 제출 실패: ${response.statusCode}');
     }
   }

@@ -12,38 +12,68 @@ class AssessmentService {
 
   // 1. ✅ 수정: 모든 퀴즈를 한 번에 로드하는 함수
   Future<List<Quiz>> fetchAssessmentQuizzes(String accessToken) async {
-    // 1-1. 단일 엔드포인트 호출
     final url = Uri.parse('$baseUrl/diagnoses/questions');
 
     try {
+      print('📱 [Flutter] 요청 시작: $url');
+      print('📱 [Flutter] 토큰 길이: ${accessToken.length}');
+
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer $accessToken'},
       );
 
+      // ✅ 응답 상세 로깅
+      print('📱 [Flutter] 응답 코드: ${response.statusCode}');
+      print('📱 [Flutter] 응답 본문 (처음 200자): ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+
       if (response.statusCode == 200) {
-        final jsonResponse = json.decode(utf8.decode(response.bodyBytes));
-        final Map<String, dynamic> data = jsonResponse['data'] ?? {};
-        final List<dynamic> parts = data['parts'] ?? [];
+        try {
+          final jsonResponse = json.decode(utf8.decode(response.bodyBytes));
+          print('📱 [Flutter] JSON 파싱 성공');
 
-        List<Quiz> allQuizzes = [];
+          final Map<String, dynamic> data = jsonResponse['data'] ?? {};
+          final List<dynamic> parts = data['parts'] ?? [];
 
-        // 1-2. 중첩된 parts > questions 구조를 순회하며 Quiz 객체 생성
-        for (var part in parts) {
-          final List<dynamic> questions = part['questions'] ?? [];
-          for (var questionJson in questions) {
-            allQuizzes.add(Quiz.fromJson(questionJson));
+          print('📱 [Flutter] parts 개수: ${parts.length}');
+
+          List<Quiz> allQuizzes = [];
+
+          for (var part in parts) {
+            final List<dynamic> questions = part['questions'] ?? [];
+            print('📱 [Flutter] part의 questions 개수: ${questions.length}');
+
+            for (var questionJson in questions) {
+              allQuizzes.add(Quiz.fromJson(questionJson));
+            }
           }
+
+          print('📱 [Flutter] 총 퀴즈 개수: ${allQuizzes.length}');
+          return allQuizzes;
+
+        } catch (parseError) {
+          // ✅ JSON 파싱 에러를 명확히 구분
+          print('❌ [Flutter] JSON 파싱 에러: $parseError');
+          print('❌ [Flutter] 응답 본문: ${response.body}');
+          throw Exception('데이터 파싱 오류: $parseError');
         }
 
-        return allQuizzes;
       } else if (response.statusCode == 401) {
+        print('❌ [Flutter] 401 에러 - 응답: ${response.body}');
         throw Exception('인증 오류 발생 (401). 유효하지 않은 토큰입니다. 재로그인이 필요합니다.');
       } else {
-        throw Exception('퀴즈 로딩 실패: ${response.statusCode}');
+        print('❌ [Flutter] ${response.statusCode} 에러 - 응답: ${response.body}');
+        throw Exception('퀴즈 로딩 실패: ${response.statusCode} - ${response.body}');
       }
+
+    } on http.ClientException catch (e) {
+      // ✅ 네트워크 에러 명확히 구분
+      print('❌ [Flutter] 네트워크 에러: $e');
+      throw Exception('네트워크 연결 오류: $e');
     } catch (e) {
-      throw Exception('네트워크 오류 또는 데이터 파싱 오류: $e');
+      // ✅ 기타 예외를 그대로 다시 던지기 (재포장하지 않음)
+      print('❌ [Flutter] 예상치 못한 에러: $e');
+      rethrow;  // 원본 예외를 그대로 던짐
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:guardpayfront/features/quiz/screens/quiz_screen.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // ⬇️ AuthService 임포트 (경로를 프로젝트에 맞게 수정하세요)
@@ -11,6 +12,8 @@ import 'features/auth/screens/signup_screen.dart';
 import 'features/auth/screens/reset_password_screen.dart';
 import 'features/auth/screens/home_screen.dart';
 import 'features/assessment/screens/assessment_screen.dart';
+import 'features/quiz/screens/quiz_category_screen.dart';
+import 'features/quiz/screens/quiz_screen.dart';
 
 import 'features/auth/screens/mypage_screen.dart';
 // ✅ 영상 관련 import 추가
@@ -89,6 +92,8 @@ class MyApp extends StatelessWidget {
         '/reset': (context) => const ResetPasswordScreen(),
         '/home': (context) => const HomeScreen(),
         '/assessment': (context) => const AssessmentScreen(),
+        '/quizCategory': (context) => const QuizCategoryScreen(),
+        '/quiz': (context) => const QuizScreen(),
         '/mypage': (context) => const MypageScreen(),
         // ✅ 예방 영상 관련 라우트 (오류 수정 완료)
         '/video': (context) => VideoCategoryScreen(),
@@ -113,7 +118,6 @@ class MyApp extends StatelessWidget {
             title: title, // ✅ title 전달
           );
         },
-
       },
     );
   }

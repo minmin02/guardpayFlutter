@@ -148,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: '금융 퀴즈 도전',
                       imagePath: 'assets/images/quiz_icon2.png',
                       onTap: () {
-                        Navigator.pushNamed(context, '/quiz');
+                        Navigator.pushNamed(context, '/quizCategory');
                       },
                     ),
                     _buildCard(

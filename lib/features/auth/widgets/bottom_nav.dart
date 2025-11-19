@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:guardpayfront/features/auth/screens/chat_screen.dart';
 import 'package:guardpayfront/features/auth/screens/home_screen.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
+import 'package:guardpayfront/features/map/screens/map_screen.dart';
+
 
 class BottomNav extends StatelessWidget {
   final int selectedIndex;
@@ -35,7 +37,11 @@ class BottomNav extends StatelessWidget {
         // TODO: 송금 화면
           break;
         case 4:
-        // TODO: 지도 화면
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const MapScreen()), // MapScreen으로 이동
+                (route) => false,
+          );
           break;
       }
     }

@@ -6,6 +6,8 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // ⬇️ AuthService 임포트 (경로를 프로젝트에 맞게 수정하세요)
 import 'features/auth/services/auth_service.dart'; //
+// ⬇️ kakao_map_plugin 제거하고 webview_flutter 사용
+// import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import 'config/theme.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';

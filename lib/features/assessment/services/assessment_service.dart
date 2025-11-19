@@ -73,10 +73,11 @@ class AssessmentService {
     } catch (e) {
       // ✅ 기타 예외를 그대로 다시 던지기 (재포장하지 않음)
       print('❌ [Flutter] 예상치 못한 에러: $e');
+      print('❌ [Flutter] 예상치 못한 에러: $e');
+
       rethrow;  // 원본 예외를 그대로 던짐
     }
   }
-
 
   // 2. ✅ 수정: 모든 퀴즈 답변을 한 번에 제출하고, 결과 ID를 받아, 최종 레벨을 조회하는 함수
   Future<String> submitAssessmentResults(List<Map<String, dynamic>> submissionData, String accessToken) async {

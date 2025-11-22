@@ -3,8 +3,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
 import 'package:guardpayfront/features/map/services/map_service.dart';
 import 'package:guardpayfront/features/map/models/bank_model.dart';
-// ✅ 새로 만든 통합 검색바 import
 import 'package:guardpayfront/features/map/widgets/IntegratedSearchBar.dart';
+
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -20,6 +20,7 @@ class _MapScreenState extends State<MapScreen> {
   double? _myLat;
   double? _myLon;
   String? _myAddress;
+
   bool _isMapLoaded = false;
   bool _isSearching = false;
   int _foundBanksCount = 0;
@@ -32,29 +33,44 @@ class _MapScreenState extends State<MapScreen> {
     _initializeWebView();
   }
 
+  // ============================
+  // 🚀 WebView 초기 설정
+  // ============================
   void _initializeWebView() {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) => _checkMapLoaded(),
-      ))
+
+    // 🔥 핵심: kakaomap:// 앱 스킴 차단!
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (NavigationRequest request) {
+            final url = request.url;
+
+            // 앱 스킴 차단
+            if (url.startsWith("kakaomap://")) {
+              print("🚫 카카오 앱 스킴 차단: $url");
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      )..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) async {
+            await Future.delayed(const Duration(milliseconds: 300));
+            setState(() => _isMapLoaded = true);
+          },
+        ),
+      )
       ..loadRequest(Uri.parse(_webViewUrl));
   }
 
-  Future<void> _checkMapLoaded() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    try {
-      final result = await _webViewController.runJavaScriptReturningResult('typeof kakao !== "undefined"');
-      if (result.toString() == 'true') setState(() => _isMapLoaded = true);
-    } catch (e) {
-      print('❌ Error checking Kakao SDK: $e');
-    }
-  }
-
-  // ==================== ✅ 통합 검색 핸들러 ====================
-  // IntegratedSearchBar에서 은행과 위치를 한 번에 받아서 처리
-  Future<void> _handleIntegratedSearch(String bank, double lat, double lon, String address) async {
+  // ============================
+  // 🔎 통합 검색 완료 처리
+  // ============================
+  Future<void> _handleIntegratedSearch(String bank, double lat, double lon,
+      String address) async {
     if (!_isMapLoaded) {
       _showSnackBar('지도 로딩 중입니다.');
       return;
@@ -68,33 +84,48 @@ class _MapScreenState extends State<MapScreen> {
       _foundBanksCount = 0;
     });
 
-    // 1. 지도 이동
+    // 지도 이동
     await _moveMapToLocation(lat, lon);
 
-    // 2. 이동한 위치 주변의 은행 검색
+    // 백엔드 검색 (기능 유지)
     await _searchBanks();
+
+    // 카카오 키워드 검색 (선택 은행)
+    await _webViewController.runJavaScript(
+      "searchBankByKeyword('${bank}');",
+    );
 
     _showSnackBar('📍 $address ($bank) 검색 완료', isSuccess: true);
   }
 
+  // ============================
+  // 지도 이동
+  // ============================
   Future<void> _moveMapToLocation(double lat, double lon) async {
     await _webViewController.runJavaScript('''
       if (typeof map !== 'undefined') {
-        var moveLatLon = new kakao.maps.LatLng($lat, $lon);
-        map.setCenter(moveLatLon);
-        if (typeof setMyLocation === 'function') setMyLocation($lat, $lon);
+        var pos = new kakao.maps.LatLng($lat, $lon);
+        map.setCenter(pos);
       }
     ''');
   }
 
+  // ============================
+  // 백엔드 은행 검색 (기존 기능 유지)
+  // ============================
   Future<void> _searchBanks() async {
     if (_myLat == null || _myLon == null) return;
+
     _setSearchingState(true);
     try {
-      final banks = await _mapService.searchBanks(_selectedBank, _myLat!, _myLon!);
+      final banks = await _mapService.searchBanks(
+        _selectedBank,
+        _myLat!,
+        _myLon!,
+      );
       _handleBankSearchResult(banks);
     } catch (e) {
-      _showSnackBar('은행 정보 로딩 실패', isError: true);
+      print('❌ 은행 검색 실패: $e');
     } finally {
       _setSearchingState(false);
     }
@@ -102,91 +133,172 @@ class _MapScreenState extends State<MapScreen> {
 
   void _handleBankSearchResult(List<BankModel> banks) {
     setState(() => _foundBanksCount = banks.length);
-    _webViewController.runJavaScript('if(typeof clearBankMarkers === "function") clearBankMarkers();');
 
-    if (banks.isEmpty) {
-      _showSnackBar('주변 5km 이내에 $_selectedBank 지점이 없습니다.', isWarning: true);
-    } else {
-      for (var bank in banks) {
-        final jsCode = '''
-          if(typeof addBankMarker === "function") {
-            addBankMarker(${bank.lat}, ${bank.lon}, "${bank.fullName}", "${bank.roadAddress ?? bank.address}");
-          }
-        ''';
-        _webViewController.runJavaScript(jsCode);
-      }
+    _webViewController.runJavaScript("""
+       if (typeof clearBankMarkers === 'function') clearBankMarkers();
+    """);
+
+    for (var bank in banks) {
+      final js = """
+        if (typeof addBankMarker === 'function') {
+          addBankMarker(${bank.lat}, ${bank.lon},
+            "${bank.fullName}",
+            "${bank.roadAddress ?? bank.address}");
+        }
+      """;
+      _webViewController.runJavaScript(js);
     }
   }
 
-  void _setSearchingState(bool isSearching) => setState(() => _isSearching = isSearching);
-
-  void _showSnackBar(String message, {bool isSuccess = false, bool isWarning = false, bool isError = false}) {
-    if (!mounted) return;
-    Color color = Colors.grey[800]!;
-    if (isSuccess) color = Colors.green;
-    if (isWarning) color = Colors.orange;
-    if (isError) color = Colors.red;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)));
+  void _setSearchingState(bool isSearching) {
+    setState(() => _isSearching = isSearching);
   }
 
+  // SnackBar
+  void _showSnackBar(String msg, {bool isSuccess = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isSuccess ? Colors.green : Colors.black87,
+      ),
+    );
+  }
+
+  // ============================
+  // UI
+  // ============================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _webViewController),
-          if (!_isMapLoaded) const Center(child: CircularProgressIndicator()),
-          if (_isSearching)
-            Container(
-                color: Colors.black12,
-                child: const Center(child: CircularProgressIndicator())
-            ),
+    return WillPopScope(
+      onWillPop: () async {
+        // WebView 뒤로갈 페이지가 있으면 WebView에서 뒤로가기 실행
+        if (await _webViewController.canGoBack()) {
+          _webViewController.goBack();
+          return false; // 앱 자체의 뒤로가기는 막음
+        }
+        return true; // 더 이상 뒤로갈 페이지 없으면 앱 뒤로가기
+      },
 
-          // ✅ [수정됨] 통합 검색바 하나만 배치
-          Positioned(
-            top: 50,
-            left: 16,
-            right: 16,
-            child: IntegratedSearchBar(
-              initialBank: _selectedBank,
-              onSearchCompleted: _handleIntegratedSearch,
-            ),
-          ),
-
-          // 하단 정보 카드
-          if (_myLat != null && _myLon != null)
+      child: Scaffold(
+        body: Stack(
+          children: [
+            WebViewWidget(controller: _webViewController),
             Positioned(
-              bottom: 20,
+              top: 8,
               left: 16,
-              right: 16,
-              child: Card(
+              child: Material(
                 elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(children: [
-                        const Icon(Icons.location_on, color: Colors.blue, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(_myAddress ?? '', overflow: TextOverflow.ellipsis)),
-                      ]),
-                      if (_foundBanksCount > 0) ...[
-                        const SizedBox(height: 8),
-                        Row(children: [
-                          const Icon(Icons.account_balance, color: Colors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Text('$_selectedBank: $_foundBanksCount개 발견', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ]),
-                      ]
-                    ],
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: () async {
+                    if (await _webViewController.canGoBack()) {
+                      _webViewController.goBack();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.black87,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ),Positioned(
+              top: 8,
+              left: 16,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: () async {
+                    if (await _webViewController.canGoBack()) {
+                      _webViewController.goBack();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.black87,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
             ),
-        ],
+
+
+            if (!_isMapLoaded)
+              const Center(child: CircularProgressIndicator()),
+
+            if (_isSearching)
+              Container(
+                color: Colors.black12,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+
+            Positioned(
+              top: 50,
+              left: 16,
+              right: 16,
+              child: IntegratedSearchBar(
+                initialBank: _selectedBank,
+                onSearchCompleted: _handleIntegratedSearch,
+              ),
+            ),
+
+            if (_myAddress != null)
+              Positioned(
+                bottom: 20,
+                left: 16,
+                right: 16,
+                child: Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.location_on, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(_myAddress!)),
+                        ]),
+                        if (_foundBanksCount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(children: [
+                              const Icon(
+                                  Icons.account_balance, color: Colors.green),
+                              const SizedBox(width: 8),
+                              Text(
+                                "${_selectedBank}  $_foundBanksCount개 발견",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ]),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        bottomNavigationBar: const BottomNav(selectedIndex: 4),
       ),
-      bottomNavigationBar: const BottomNav(selectedIndex: 4),
     );
   }
 }

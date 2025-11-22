@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:guardpayfront/features/map/models/bank_model.dart';
 import 'package:guardpayfront/features/map/models/location_model.dart';
+import 'package:guardpayfront/core/services/storage.dart';
 
 class MapService {
-  final storage = const FlutterSecureStorage();
+  final storage = AppStorage.storage;
 
   // ✅ 백엔드 URL 설정
   static const String baseUrl = 'http://10.0.2.2:8080'; // 에뮬레이터용
@@ -94,7 +95,7 @@ class MapService {
         throw Exception('은행 검색 실패: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ 은행 검색 에러: $e');
+      print(' 로딩중: $e');
       rethrow;
     }
   }

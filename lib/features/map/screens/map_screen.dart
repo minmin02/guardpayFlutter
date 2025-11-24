@@ -3,7 +3,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
 import 'package:guardpayfront/features/map/services/map_service.dart';
 import 'package:guardpayfront/features/map/models/bank_model.dart';
-// ✅ 새로 만든 통합 검색바 import
 import 'package:guardpayfront/features/map/widgets/IntegratedSearchBar.dart';
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});

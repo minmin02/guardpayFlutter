@@ -10,23 +10,27 @@ class MyAccount {
     required this.currency,
   });
 
-  // [추가] 서버 JSON 데이터를 객체로 변환하는 공장(Factory) 메서드
   factory MyAccount.fromJson(Map<String, dynamic> json) {
     return MyAccount(
-      accountName: json['accountName'] ?? '알 수 없음',
-      balance: json['point'] ?? 0,
+      // 1. 이름: 서버에서 이름('nickname' 등)을 주면 쓰고, 안 주면 'GuardPay 머니'로 표시
+      accountName: json['nickname'] ?? json['name'] ?? json['accountName'] ?? 'GuardPay 머니',
+
+      // 2. 잔액: 'point', 'points', 'balance' 중 하나라도 있으면 가져오기
+      balance: json['point'] ?? json['points'] ?? json['balance'] ?? 0,
+
+      // 3. 통화: 없으면 원화(KRW)
       currency: json['currency'] ?? 'KRW',
     );
   }
 }
 
-// 2. 송금 대상(수취인) 모델
+// 2. 송금 대상(수취인) 모델 (기존 유지)
 class Beneficiary {
   final int beneficiaryId;
   final String bankName;
   final String accountNumber;
   final String accountHolderName;
-  final String? nickname; // 별칭은 없을 수도 있음
+  final String? nickname;
 
   Beneficiary({
     required this.beneficiaryId,
@@ -38,7 +42,7 @@ class Beneficiary {
 
   factory Beneficiary.fromJson(Map<String, dynamic> json) {
     return Beneficiary(
-      beneficiaryId: json['id'] ?? 0, // 서버 필드명 확인 필요 (id 혹은 beneficiaryId)
+      beneficiaryId: json['id'] ?? 0,
       bankName: json['bankName'] ?? '',
       accountNumber: json['accountNumber'] ?? '',
       accountHolderName: json['accountHolderName'] ?? '',
@@ -47,7 +51,7 @@ class Beneficiary {
   }
 }
 
-// 3. 송금 결과 모델 (성공 시 리워드 정보 등)
+// 3. 송금 결과 모델 (기존 유지)
 class TransferResult {
   final bool success;
   final String message;
@@ -61,9 +65,9 @@ class TransferResult {
 
   factory TransferResult.fromJson(Map<String, dynamic> json) {
     return TransferResult(
-      success: true, // 200 OK로 왔다면 성공
+      success: true,
       message: json['message'] ?? '송금 완료',
-      rewardPoints: json['rewardPoints'], // 리워드가 있다면 매핑
+      rewardPoints: json['rewardPoints'],
     );
   }
 }

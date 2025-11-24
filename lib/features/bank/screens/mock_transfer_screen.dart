@@ -6,11 +6,13 @@ import 'transfer_success_screen.dart';
 class MockTransferScreen extends StatefulWidget {
   final Beneficiary beneficiary;
   final String accessToken;
+  final int myBalance; // 내 잔액 정보
 
   const MockTransferScreen({
     super.key,
     required this.beneficiary,
     required this.accessToken,
+    required this.myBalance,
   });
 
   @override
@@ -24,7 +26,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
 
   final TransferService _service = TransferService();
 
-  // 은행 선택 드롭다운 상태 관리
+  // 은행 선택 드롭다운
   String? _selectedBank;
   final List<String> _bankList = [
     '국민은행', '신한은행', '하나은행', '우리은행', 'NH농협은행',
@@ -48,6 +50,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
     super.dispose();
   }
 
+  // 버튼 활성화 여부 체크
   void _checkValidity() {
     setState(() {
       isTransferReady = _accountNumberController.text.isNotEmpty &&
@@ -59,38 +62,73 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
   Future<void> _performTransfer() async {
     if (!isTransferReady) return;
 
-    String inputNumber = _accountNumberController.text.replaceAll('-', '');
-    String targetNumber = widget.beneficiary.accountNumber.replaceAll('-', '');
+    // 키보드 내리기
+    FocusScope.of(context).unfocus();
 
-    bool isBankMatch = _selectedBank == widget.beneficiary.bankName;
-    bool isAccountMatch = inputNumber == targetNumber;
+    // 1. 입력값 가져오기
+    String inputNumber = _accountNumberController.text.replaceAll('-', '').replaceAll(' ', '');
+    String targetNumber = widget.beneficiary.accountNumber.replaceAll('-', '').replaceAll(' ', '');
+    String selectedBankName = (_selectedBank ?? '').trim();
+    String targetBankName = widget.beneficiary.bankName.trim();
 
-    if (!isBankMatch || !isAccountMatch) {
+    // 금액 숫자로 변환
+    int transferAmount = int.tryParse(_amountController.text) ?? 0;
+
+    // 2. 계좌 정보 일치 여부 확인
+    bool isAccountMatch = (inputNumber == targetNumber);
+    bool isBankMatch = (selectedBankName == targetBankName);
+
+    if (!isAccountMatch || !isBankMatch) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("계좌 정보를 다시 확인해주세요"),
-          duration: Duration(seconds: 2),
+          content: Text("계좌번호와 은행 정보가 일치하지 않습니다."),
           backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
         ),
       );
       return;
     }
 
+    // 3. [추가된 로직] 잔액 초과 확인
+    if (transferAmount > widget.myBalance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("잔액을 초과했습니다. (현재 잔액: ${widget.myBalance}원)"),
+          backgroundColor: Colors.red, // 빨간색 경고
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return; // 여기서 함수를 끝내서 송금을 막음!
+    }
+
+    // 4. 모든 검사 통과 -> 송금 진행
     setState(() => isLoading = true);
 
     try {
       await _service.postTransfer(
         accessToken: widget.accessToken,
         toBeneficiaryId: widget.beneficiary.beneficiaryId,
-        amount: int.parse(_amountController.text),
+        amount: transferAmount,
       );
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
+      // 성공 화면으로 이동
+      final result = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const TransferSuccessScreen()),
+        MaterialPageRoute(
+          builder: (context) => TransferSuccessScreen(
+            completedBeneficiaryId: widget.beneficiary.beneficiaryId,
+          ),
+        ),
       );
+
+      // 성공 후 복귀 시 처리
+      if (result != null) {
+        if (!mounted) return;
+        Navigator.pop(context, result);
+      }
+
     } catch (e) {
       if (!mounted) return;
       String errorMsg = e.toString().replaceAll("Exception: ", "");
@@ -143,6 +181,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
               ),
               const SizedBox(height: 10),
 
+              // 계좌번호 입력
               TextField(
                 controller: _accountNumberController,
                 keyboardType: TextInputType.number,
@@ -160,6 +199,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
               ),
               const SizedBox(height: 20),
 
+              // 은행 선택
               DropdownButtonFormField<String>(
                 value: _selectedBank,
                 hint: const Text("은행 선택", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.grey)),
@@ -195,6 +235,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
               ),
               const SizedBox(height: 20),
 
+              // 금액 입력
               TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
@@ -213,21 +254,14 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
 
               const SizedBox(height: 100),
 
+              // 송금 버튼
               GestureDetector(
-                //onTap: (isTransferReady && !isLoading) ? _performTransfer : null,
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const TransferSuccessScreen()),
-                  );
-                },
-
+                onTap: (isTransferReady && !isLoading) ? _performTransfer : null,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    //color: isTransferReady ? const Color(0xFF49A65E) : Colors.grey[300],
-                    color: const Color(0xFF49A65E),
+                    color: isTransferReady ? const Color(0xFF49A65E) : Colors.grey[300],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
@@ -235,7 +269,7 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
                       ? const SizedBox(
                     height: 24,
                     width: 24,
-                    //child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                   )
                       : const Text(
                     "송금하기",
@@ -256,10 +290,10 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
     );
   }
 
-  // [수정됨] 이전 화면(_accountItem)과 동일한 디자인
+  // 상단 계좌 정보 카드 (UI 유지)
   Widget _selectedAccountCard() {
     return Container(
-      height: 100, // 이전 화면과 높이 비슷하게 맞춤
+      height: 100,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -267,11 +301,8 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
       ),
       child: Row(
         children: [
-          // 로고 표시
           _buildBankLogo(widget.beneficiary.bankName),
           const SizedBox(width: 15),
-
-          // 텍스트 정보
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -295,13 +326,11 @@ class _MockTransferScreenState extends State<MockTransferScreen> {
               ],
             ),
           ),
-          // '선택' 버튼은 이미 선택되었으므로 제거함
         ],
       ),
     );
   }
 
-  // [추가] 로고 이미지를 불러오기 위한 함수 (이전 화면에서 가져옴)
   Widget _buildBankLogo(String bankName) {
     String imagePath = 'assets/images/default_bank.png';
 

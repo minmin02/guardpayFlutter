@@ -1,6 +1,8 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:guardpayfront/features/bank/screens/account_selection_screen.dart';
+import 'package:guardpayfront/features/bank/screens/mock_transfer_screen.dart';
 import 'package:guardpayfront/features/quiz/screens/quiz_screen.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -96,6 +98,7 @@ class MyApp extends StatelessWidget {
         '/assessment': (context) => const AssessmentScreen(),
         '/quizCategory': (context) => const QuizCategoryScreen(),
         '/quiz': (context) => const QuizScreen(),
+        '/accountSelection': (context) => const AccountSelectionScreen(),
         '/mypage': (context) => const MypageScreen(),
         // ✅ 예방 영상 관련 라우트 (오류 수정 완료)
         '/video': (context) => VideoCategoryScreen(),

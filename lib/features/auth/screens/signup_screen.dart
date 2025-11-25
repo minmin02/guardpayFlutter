@@ -4,7 +4,7 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 // 분리된 서비스와 위젯을 임포트합니다.
 import '../services/auth_service.dart';
-import '../widgets/email_auth_section.dart';
+import '../services/api_service.dart';
 import '../widgets/auth_input_field.dart';
 
 // 회원가입 화면
@@ -18,30 +18,57 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   // 1. 서비스 인스턴스 및 상태 관리
   final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>(); // 폼 유효성 검사를 위한 키
 
   final _emailController = TextEditingController();
-  final _authCodeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   final _nicknameController = TextEditingController();
 
   bool _termsAgreed = false;
-  bool _isCodeRequested = false; // 인증 코드가 요청되었는가?
-  bool _isCodeVerified = false; // 인증 코드가 확인되었는가?
+  bool _isEmailChecked = false; // 이메일 중복 확인 여부
   bool _isLoading = false; // 로딩 상태
 
-  // 2. 인증 코드 요청 핸들러
-  Future<void> _handleCodeRequest() async {
+  @override
+  void initState() {
+    super.initState();
+    // ✅ 이메일 컨트롤러에 리스너 추가
+    _emailController.addListener(_onEmailChanged);
+  }
+
+  // ✅ 이메일이 변경되면 중복 확인 상태 초기화
+  void _onEmailChanged() {
+    if (_isEmailChecked) {
+      setState(() { _isEmailChecked = false; });
+    }
+  }
+
+  // 2. 이메일 중복 확인 핸들러
+  Future<void> _handleEmailCheck() async {
+    // 이메일 형식 검증
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showSnackBar('이메일을 입력해주세요.');
+      return;
+    }
+
+    // 간단한 이메일 형식 검증
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) {
+      _showSnackBar('올바른 이메일 형식을 입력해주세요.');
+      return;
+    }
+
     setState(() { _isLoading = true; });
     try {
-      await _authService.requestAuthCode(_emailController.text);
-      setState(() {
-        _isCodeRequested = true;
-        _authCodeController.clear(); // 새 요청 시 코드 초기화
-      });
-      _showSnackBar('인증 코드가 이메일로 전송되었습니다.');
+      final isAvailable = await _apiService.checkEmailDuplicate(email);
+      if (isAvailable) {
+        setState(() { _isEmailChecked = true; });
+        _showSnackBar('사용 가능한 이메일입니다.');
+      }
     } catch (e) {
+      setState(() { _isEmailChecked = false; });
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if(mounted) {
@@ -50,23 +77,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  // 3. 인증 코드 확인 핸들러
-  Future<void> _handleCodeVerify() async {
-    setState(() { _isLoading = true; });
-    try {
-      await _authService.verifyAuthCode(_emailController.text, _authCodeController.text);
-      setState(() { _isCodeVerified = true; });
-      _showSnackBar('이메일 인증이 성공적으로 완료되었습니다.');
-    } catch (e) {
-      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
-      }
-    }
-  }
-
-  // 4. '가입하기' 버튼 함수 (최종 제출)
+  // 3. '가입하기' 버튼 함수 (최종 제출)
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return; // 폼 유효성 검사 실패 시 종료
@@ -76,10 +87,12 @@ class _SignupScreenState extends State<SignupScreen> {
       _showSnackBar('비밀번호가 일치하지 않습니다.');
       return;
     }
-    if (!_isCodeVerified) {
-      _showSnackBar('이메일 인증을 완료해주세요.');
+
+    if (!_isEmailChecked) {
+      _showSnackBar('이메일 중복 확인을 완료해주세요.');
       return;
     }
+
     if (!_termsAgreed) {
       _showSnackBar('약관에 동의해주세요.');
       return;
@@ -94,8 +107,8 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       _showSnackBar(message);
 
-      // ✅ [병합] 회원가입 성공 시 로그인 화면으로 이동하는 로직을 활성화합니다.
-      await Future.delayed(const Duration(seconds: 1)); // 알림을 보여줄 시간
+      // 회원가입 성공 시 로그인 화면으로 이동
+      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
@@ -109,7 +122,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  // 5. 카카오 로그인/가입 처리 핸들러
+  // 4. 카카오 로그인/가입 처리 핸들러
   Future<void> _handleKakaoSignup() async {
     if (_isLoading) return;
     setState(() { _isLoading = true; });
@@ -119,14 +132,9 @@ class _SignupScreenState extends State<SignupScreen> {
       final isNewUser = result['isNewUser'] ?? false;
 
       if (isNewUser) {
-        // TODO: 신규 사용자일 경우, 약관 동의나 추가 정보 입력 화면으로 이동
         _showSnackBar('카카오 계정으로 가입을 진행합니다. 추가 정보 입력 화면으로 이동합니다.');
-        // 예: Navigator.push(context, MaterialPageRoute(builder: (_) => TermsScreen(userInfo: result)));
       } else {
-        // TODO: 기존 사용자일 경우, JWT 저장 후 메인 화면으로 이동
         _showSnackBar('카카오 계정으로 로그인되었습니다. 메인 화면으로 이동합니다.');
-        // 예: final token = result['accessToken']; await saveToken(token);
-        // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => MainScreen()), (route) => false);
       }
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
@@ -149,8 +157,8 @@ class _SignupScreenState extends State<SignupScreen> {
   // 리소스 해제
   @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged); // ✅ 리스너 제거
     _emailController.dispose();
-    _authCodeController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     _nicknameController.dispose();
@@ -187,15 +195,70 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 30),
 
-              // 1. 이메일 인증 섹션
-              EmailAuthSection(
-                emailController: _emailController,
-                codeController: _authCodeController,
-                isCodeRequested: _isCodeRequested,
-                isCodeVerified: _isCodeVerified,
-                onCodeRequest: _handleCodeRequest,
-                onCodeVerify: _handleCodeVerify,
+              // 1. 이메일 입력 및 중복 확인
+              const Text('이메일 *', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  Expanded(
+                    child: AuthInputField(
+                      controller: _emailController,
+                      hintText: '이메일',
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '이메일을 입력해주세요.';
+                        }
+                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(value)) {
+                          return '올바른 이메일 형식을 입력해주세요.';
+                        }
+                        return null;
+                      },
+                      // ✅ onChanged 제거
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _handleEmailCheck,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isEmailChecked
+                          ? Colors.grey
+                          : const Color(0xFF6AA84F),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ))
+                        : Text(
+                      _isEmailChecked ? '확인완료' : '중복확인',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              if (_isEmailChecked)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    '✓ 사용 가능한 이메일입니다',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 15),
 
               // 2. 비밀번호 입력

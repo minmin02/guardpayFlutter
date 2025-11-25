@@ -384,7 +384,40 @@ class ApiService {
       log('>>> [API] non-200: ${response.statusCode} / $responseBody');
       return "오류가 발생했습니다: ${response.statusCode} / $responseBody";
     }
+  }
 
+  // ✅ [추가] 이메일 중복 확인 (GET 요청)
+  Future<bool> checkEmailDuplicate(String email) async {
+    try {
+      // 백엔드 경로: /api/members/check-email?email=user@test.com
+      final uri = Uri.parse('$_baseUrl/api/auth/check-email?email=$email');
+      log('>> [CheckEmail] GET $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      // 응답 디코딩 (한글 깨짐 방지)
+      final responseBody = utf8.decode(response.bodyBytes);
+      final jsonResponse = jsonDecode(responseBody);
+      log('>> [CheckEmail:res] status=${response.statusCode}, msg=${jsonResponse['message']}');
+
+      if (response.statusCode == 200) {
+        return true; // 사용 가능
+      } else if (response.statusCode == 409) {
+        // 백엔드에서 409(CONFLICT)를 보냈으므로 중복된 이메일임
+        throw Exception(jsonResponse['message'] ?? "이미 사용 중인 이메일입니다.");
+      } else {
+        throw Exception("중복 확인 실패: ${response.statusCode}");
+      }
+    } catch (e) {
+      log('>> [CheckEmail:exception] $e');
+      rethrow; // UI에서 에러 메시지를 띄우기 위해 예외 던짐
+    }
   }
 
 

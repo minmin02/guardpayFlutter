@@ -260,6 +260,24 @@ class ApiService {
       return false;
     }
   }
+  Future<String?> getMyGrade() async {
+    final token = await storage.read(key: 'accessToken');
+    if (token == null) return null;
+
+    // 백엔드 경로 확인 필수! (예: /members/me/grade 인지 /api/members/me/grade 인지)
+    final result = await get(
+      '/api/members/me/grade',
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (result != null && result.containsKey('grade')) {
+      return result['grade'] as String;
+    }
+    return null;
+  }
+
 
   Future<String> sendChatMessage(String message) async {
     log('>>> [API] enter sendChatMessage: "$message"');
@@ -366,5 +384,8 @@ class ApiService {
       log('>>> [API] non-200: ${response.statusCode} / $responseBody');
       return "오류가 발생했습니다: ${response.statusCode} / $responseBody";
     }
+
   }
+
+
 }

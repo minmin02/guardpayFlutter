@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:guardpayfront/features/auth/screens/grade_screen.dart';
 import 'chat_screen.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
@@ -17,7 +18,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final storage = AppStorage.storage;
   final ApiService _api = ApiService();
   int _selectedIndex = 0;
-
+// _HomeScreenState 클래스 내부 변수로 추가
+  final List<Map<String, String>> _searchOptions = [
+    {'title': '역량 진단', 'route': '/assessment'},
+    {'title': '금융 퀴즈', 'route': '/quizCategory'},
+    {'title': '보이스피싱 예방', 'route': '/video'},
+    {'title': '마이페이지', 'route': '/mypage'},
+    {'title': '내 등급 조회', 'route': '/grade'}, // 새로 만든 등급 화면
+  ];
   String? accessToken;
 
   @override
@@ -55,20 +63,92 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.menu, color: Colors.black87, size: 26),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const GradeScreen()),
+                      );
+                    },
+                    child: const Icon(Icons.menu, color: Colors.black87, size: 26),
+                  ),
+
                   const SizedBox(width: 10),
                   Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: '검색어를 입력해주세요.',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        prefixIcon:
-                        const Icon(Icons.search, color: Colors.black54),
-                      ),
+                    child: Autocomplete<Map<String, String>>(
+                      // 1️⃣ 검색 로직
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text == '') {
+                          return const Iterable<Map<String, String>>.empty();
+                        }
+                        return _searchOptions.where((option) {
+                          return option['title']!.contains(textEditingValue.text);
+                        });
+                      },
+
+                      // 2️⃣ 선택 시 이동 로직
+                      onSelected: (Map<String, String> selection) {
+                        // 키보드 내리기
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        print('선택된 메뉴: ${selection['title']}');
+                        Navigator.pushNamed(context, selection['route']!);
+                      },
+
+                      // 3️⃣ 입력창 디자인 (기존 유지)
+                      fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: '검색어를 입력해주세요.',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                          ),
+                        );
+                      },
+
+                      // 4️⃣ [수정됨] 자동완성 리스트 디자인
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            color: Colors.transparent, // Material 자체 색상은 투명하게
+                            child: Container(
+                              // ✅ 너비를 화면 너비에 맞게 조절 (약간의 여백 제외)
+                              width: MediaQuery.of(context).size.width - 90,
+                              constraints: const BoxConstraints(
+                                maxHeight: 200, // ✅ 리스트 최대 높이 제한 (스크롤 가능하게)
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero, // 🚨 여기에 있던 'ㅇ' 오타 제거 완료
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option['title']!),
+                                    onTap: () {
+                                      onSelected(option);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 15),

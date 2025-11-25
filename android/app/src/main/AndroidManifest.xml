@@ -5,16 +5,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
-        android:networkSecurityConfig="@xml/network_security_config"
         android:label="guardpayfront"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-
-        <!-- 카카오 지도 앱 키 -->
-        <meta-data
-            android:name="com.kakao.sdk.AppKey"
-            android:value="1843299784f412aac2aaeb4085069b0b"/>
+        android:usesCleartextTraffic="true"> <meta-data
+        android:name="com.kakao.sdk.AppKey"
+        android:value="1843299784f412aac2aaeb4085069b0b"/>
 
         <activity
             android:name=".MainActivity"
@@ -42,7 +38,6 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ 카카오 로그인 인증 Activity (수정됨) -->
         <activity
             android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
             android:exported="true">

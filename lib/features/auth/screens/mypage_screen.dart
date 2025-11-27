@@ -261,6 +261,49 @@ class _MypageScreenState extends State<MypageScreen> {
     }
   }
 
+  // 로그아웃
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: const Text('로그아웃 하시겠습니까?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('로그아웃', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // 저장된 토큰 삭제
+        await storage.delete(key: 'accessToken');
+        await storage.delete(key: 'refreshToken');
+
+        if (mounted) {
+          // 로그인 화면으로 이동 (뒤로가기 불가)
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+                (route) => false,
+          );
+        }
+      } catch (e) {
+        print('❌ 로그아웃 실패: $e');
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nicknameController.dispose();
@@ -699,12 +742,18 @@ class _MypageScreenState extends State<MypageScreen> {
                 ),
                 child: Column(
                   children: [
-
                     Divider(height: 1, color: Colors.grey[200]),
                     _buildMenuItem(
                       icon: Icons.card_giftcard,
                       title: '내 쿠폰함',
                       onTap: () {},
+                    ),
+                    Divider(height: 1, color: Colors.grey[200]),
+                    _buildMenuItem(
+                      icon: Icons.logout,
+                      title: '로그아웃',
+                      onTap: _logout,
+                      isLogout: true,
                     ),
                   ],
                 ),
@@ -817,6 +866,7 @@ class _MypageScreenState extends State<MypageScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    bool isLogout = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -828,23 +878,24 @@ class _MypageScreenState extends State<MypageScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: isLogout ? Colors.red.withOpacity(0.1) : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 20, color: Colors.green),
+              child: Icon(icon, size: 20, color: isLogout ? Colors.red : Colors.green),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color: isLogout ? Colors.red : Colors.black87,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            if (!isLogout)
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
           ],
         ),
       ),

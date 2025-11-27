@@ -19,7 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // 1. 서비스 인스턴스 및 상태 관리
   final AuthService _authService = AuthService();
   final ApiService _apiService = ApiService();
-  final _formKey = GlobalKey<FormState>(); // 폼 유효성 검사를 위한 키
+  final _formKey = GlobalKey<FormState>();
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -27,52 +27,114 @@ class _SignupScreenState extends State<SignupScreen> {
   final _nicknameController = TextEditingController();
 
   bool _termsAgreed = false;
+  bool _serviceTermsAgreed = false;
+  bool _privacyPolicyAgreed = false;
+  bool _marketingAgreed = false;
+
   bool _isEmailChecked = false; // 이메일 중복 확인 여부
-  bool _isLoading = false; // 로딩 상태
+  bool _isLoading = false;
+
+  // ========== 약관 전문 ==========
+  final String termsOfServiceText = """
+[서비스 이용약관]
+
+1. 본 서비스는 회원에게 다양한 기능을 제공합니다.
+2. 회원은 서비스 이용 시 관련 법령을 준수해야 합니다.
+3. 회사는 안전하고 안정적인 서비스 제공을 위해 노력합니다.
+4. 기타 자세한 내용은 본 약관에 따릅니다.
+""";
+
+  final String privacyPolicyText = """
+[개인정보 수집 및 이용 안내]
+
+1. 수집 항목: 이메일, 비밀번호, 닉네임
+2. 이용 목적: 회원가입, 본인확인, 서비스 운영 및 고객 상담
+3. 보관기간: 회원 탈퇴 시까지
+""";
+
+  final String marketingPolicyText = """
+[마케팅 정보 수신 동의]
+
+1. 이벤트, 혜택, 광고 정보를 제공할 수 있습니다.
+2. 수신 여부는 언제든지 설정에서 변경할 수 있습니다.
+""";
 
   @override
   void initState() {
     super.initState();
-    // ✅ 이메일 컨트롤러에 리스너 추가
     _emailController.addListener(_onEmailChanged);
   }
 
-  // ✅ 이메일이 변경되면 중복 확인 상태 초기화
+  // 이메일이 변경되면 중복 확인 상태 초기화
   void _onEmailChanged() {
     if (_isEmailChecked) {
-      setState(() { _isEmailChecked = false; });
+      setState(() => _isEmailChecked = false);
     }
+  }
+
+  // 약관 팝업
+  void _showPolicyDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(content)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("닫기"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 약관 전체 동의 토글
+  void _toggleAllTerms(bool? value) {
+    setState(() {
+      _termsAgreed = value ?? false;
+      _serviceTermsAgreed = value ?? false;
+      _privacyPolicyAgreed = value ?? false;
+      _marketingAgreed = value ?? false;
+    });
+  }
+
+  // 개별 약관 체크 시 전체 동의 상태 업데이트
+  void _updateAllTermsState() {
+    setState(() {
+      _termsAgreed = _serviceTermsAgreed && _privacyPolicyAgreed;
+    });
   }
 
   // 2. 이메일 중복 확인 핸들러
   Future<void> _handleEmailCheck() async {
-    // 이메일 형식 검증
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       _showSnackBar('이메일을 입력해주세요.');
       return;
     }
 
-    // 간단한 이메일 형식 검증
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(email)) {
       _showSnackBar('올바른 이메일 형식을 입력해주세요.');
       return;
     }
 
-    setState(() { _isLoading = true; });
+    setState(() => _isLoading = true);
     try {
       final isAvailable = await _apiService.checkEmailDuplicate(email);
       if (isAvailable) {
-        setState(() { _isEmailChecked = true; });
+        setState(() => _isEmailChecked = true);
         _showSnackBar('사용 가능한 이메일입니다.');
       }
     } catch (e) {
-      setState(() { _isEmailChecked = false; });
+      setState(() => _isEmailChecked = false);
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -80,7 +142,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // 3. '가입하기' 버튼 함수 (최종 제출)
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
-      return; // 폼 유효성 검사 실패 시 종료
+      return;
     }
 
     if (_passwordController.text != _passwordConfirmController.text) {
@@ -93,12 +155,12 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (!_termsAgreed) {
-      _showSnackBar('약관에 동의해주세요.');
+    if (!_serviceTermsAgreed || !_privacyPolicyAgreed) {
+      _showSnackBar('필수 약관에 동의해주세요.');
       return;
     }
 
-    setState(() { _isLoading = true; });
+    setState(() => _isLoading = true);
     try {
       final message = await _authService.signup(
         email: _emailController.text,
@@ -107,17 +169,15 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       _showSnackBar(message);
 
-      // 회원가입 성공 시 로그인 화면으로 이동
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
-
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -125,7 +185,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // 4. 카카오 로그인/가입 처리 핸들러
   Future<void> _handleKakaoSignup() async {
     if (_isLoading) return;
-    setState(() { _isLoading = true; });
+    setState(() => _isLoading = true);
 
     try {
       final result = await _authService.signupWithKakao();
@@ -139,8 +199,8 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      if(mounted) {
-        setState(() { _isLoading = false; });
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -157,7 +217,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // 리소스 해제
   @override
   void dispose() {
-    _emailController.removeListener(_onEmailChanged); // ✅ 리스너 제거
+    _emailController.removeListener(_onEmailChanged);
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
@@ -215,7 +275,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         }
                         return null;
                       },
-                      // ✅ onChanged 제거
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -304,21 +363,108 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 25),
 
-              // 4. 약관 동의
+              // 4. 약관 동의 (상세)
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFD0D0D0)),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                child: Row(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Checkbox(
-                      value: _termsAgreed,
-                      onChanged: (value) => setState(() { _termsAgreed = value ?? false; }),
+                    // 전체 동의
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _termsAgreed,
+                          onChanged: _toggleAllTerms,
+                        ),
+                        const Text(
+                          '약관 전체 동의',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
-                    const Text('약관 전체 동의'),
+                    const Divider(),
+
+                    // 필수 약관 1 - 서비스 이용약관
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _serviceTermsAgreed,
+                          onChanged: (v) {
+                            setState(() => _serviceTermsAgreed = v ?? false);
+                            _updateAllTermsState();
+                          },
+                        ),
+                        const Expanded(
+                          child: Text(
+                            '(필수) 서비스 이용약관 동의',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showPolicyDialog(
+                            "서비스 이용약관",
+                            termsOfServiceText,
+                          ),
+                          child: const Text('보기'),
+                        ),
+                      ],
+                    ),
+
+                    // 필수 약관 2 - 개인정보 수집
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _privacyPolicyAgreed,
+                          onChanged: (v) {
+                            setState(() => _privacyPolicyAgreed = v ?? false);
+                            _updateAllTermsState();
+                          },
+                        ),
+                        const Expanded(
+                          child: Text(
+                            '(필수) 개인정보 수집 및 이용 동의',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showPolicyDialog(
+                            "개인정보 수집 및 이용",
+                            privacyPolicyText,
+                          ),
+                          child: const Text('보기'),
+                        ),
+                      ],
+                    ),
+
+                    // 선택 약관 - 마케팅
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _marketingAgreed,
+                          onChanged: (v) {
+                            setState(() => _marketingAgreed = v ?? false);
+                          },
+                        ),
+                        const Expanded(
+                          child: Text(
+                            '(선택) 마케팅 정보 수신 동의',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showPolicyDialog(
+                            "마케팅 정보 수신",
+                            marketingPolicyText,
+                          ),
+                          child: const Text('보기'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -337,8 +483,14 @@ class _SignupScreenState extends State<SignupScreen> {
                     ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('가입하기', style: TextStyle(color: Colors.white)),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ))
+                    : const Text(
+                  '가입하기',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -359,7 +511,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleKakaoSignup,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEE500), // 카카오 노란색
+                  backgroundColor: const Color(0xFFFEE500),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),

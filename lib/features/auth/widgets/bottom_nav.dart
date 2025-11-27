@@ -5,6 +5,7 @@ import 'package:guardpayfront/features/auth/services/api_service.dart';
 import 'package:guardpayfront/features/map/screens/map_screen.dart';
 
 import '../../bank/screens/account_selection_screen.dart';
+import '../../shop/screens/shop_screen.dart';
 
 
 class BottomNav extends StatelessWidget {
@@ -33,7 +34,11 @@ class BottomNav extends StatelessWidget {
           );
           break;
         case 2:
-        // TODO: 쇼핑 화면
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const ShopScreen()),
+                (route) => false,
+          );
           break;
         case 3:
           Navigator.pushAndRemoveUntil(

@@ -117,18 +117,27 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 110),
-              const Text(
-                'GuardPay',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF6AA84F),
-                  fontSize: 55,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 5),
+
+              Center(
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png', // 이미지 경로
+                      width: 350,
+                      height: 350,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 10),
+
+
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 80),
+
+
+              const SizedBox(height: 10),
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(

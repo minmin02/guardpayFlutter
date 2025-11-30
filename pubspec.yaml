@@ -25,6 +25,7 @@ dependencies:
   webview_flutter: ^4.4.2
   shelf: ^1.4.1  # ✅ 추가
   shelf_static: ^1.1.2  # ✅ 추가
+  barcode_widget: ^2.0.4
 
   # ✅ 이미지 선택 관련 패키지 (갤러리/카메라)
   image_picker: ^1.1.2

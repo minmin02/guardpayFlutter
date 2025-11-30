@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 import 'package:guardpayfront/features/auth/services/api_service.dart';
 import 'package:guardpayfront/features/auth/widgets/bottom_nav.dart';
+import 'package:guardpayfront/features/shop/screens/my_coupon_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -746,7 +747,14 @@ class _MypageScreenState extends State<MypageScreen> {
                     _buildMenuItem(
                       icon: Icons.card_giftcard,
                       title: '내 쿠폰함',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MyCouponScreen(),
+                          ),
+                        );
+                      },
                     ),
                     Divider(height: 1, color: Colors.grey[200]),
                     _buildMenuItem(

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert'; // jsonDecode를 사용하기 위해 필요
 import 'package:http/http.dart' as http; // http 사용을 위해 필요
 import 'package:guardpayfront/core/services/storage.dart';
+import 'package:guardpayfront/features/auth/services/social_login_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +19,43 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   //final _storage = const FlutterSecureStorage();
   final _storage = AppStorage.storage; // ✅ 교체
+  final _socialLoginService = SocialLoginService(); // 추가
+
+  // 카카오 로그인 처리
+  Future<void> _handleKakaoLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await _socialLoginService.loginWithKakao();
+
+      _showSnackBar(result['message']);
+
+      if (result['success'] && mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // 구글 로그인 처리
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await _socialLoginService.loginWithGoogle();
+
+      _showSnackBar(result['message']);
+
+      if (result['success'] && mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
 
   bool _isLoading = false;
@@ -108,7 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (UI 부분은 동일) ...
     return Scaffold(
       backgroundColor: const Color(0xFFF9F5EC),
       body: SafeArea(
@@ -118,25 +155,19 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 5),
-
               Center(
                 child: Column(
                   children: [
                     Image.asset(
-                      'assets/images/logo.png', // 이미지 경로
+                      'assets/images/logo.png',
                       width: 350,
                       height: 350,
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 10),
-
-
                   ],
                 ),
               ),
-
-
-
               const SizedBox(height: 10),
               TextField(
                 controller: _emailController,
@@ -149,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   EdgeInsets.symmetric(vertical: 13.0, horizontal: 15.0),
                 ),
               ),
-
               const SizedBox(height: 13),
               TextField(
                 controller: _passwordController,
@@ -209,7 +239,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text('회원가입'),
               ),
-
               const SizedBox(height: 7),
               TextButton(
                 onPressed: () {
@@ -222,28 +251,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('임시 비밀번호 발급받기 >'),
               ),
               const SizedBox(height: 18),
+              // ✅ 수정: 소셜 로그인 버튼 연결
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      // TODO: 카카오 로그인 로직
-                    },
-                    child: Image.asset(
-                      'assets/images/kakao_logo.png',
-                      width: 70,
-                      height: 70,
+                    onTap: _isLoading ? null : _handleKakaoLogin, // ✅ 카카오 로그인 연결
+                    child: Opacity(
+                      opacity: _isLoading ? 0.5 : 1.0, // 로딩 중일 때 비활성화 표시
+                      child: Image.asset(
+                        'assets/images/kakao_logo.png',
+                        width: 70,
+                        height: 70,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 22),
                   GestureDetector(
-                    onTap: () {
-                      // TODO: 구글 로그인 로직
-                    },
-                    child: Image.asset(
-                      'assets/images/google_logo.png',
-                      width: 70,
-                      height: 70,
+                    onTap: _isLoading ? null : _handleGoogleLogin, // ✅ 구글 로그인 연결
+                    child: Opacity(
+                      opacity: _isLoading ? 0.5 : 1.0, // 로딩 중일 때 비활성화 표시
+                      child: Image.asset(
+                        'assets/images/google_logo.png',
+                        width: 70,
+                        height: 70,
+                      ),
                     ),
                   ),
                 ],
@@ -255,3 +287,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

@@ -8,9 +8,12 @@
         android:label="guardpayfront"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true"> <meta-data
-        android:name="com.kakao.sdk.AppKey"
-        android:value="1843299784f412aac2aaeb4085069b0b"/>
+        android:usesCleartextTraffic="true">
+
+        <!-- ✅ 카카오 앱 키 업데이트 (새로운 키로 변경) -->
+        <meta-data
+            android:name="com.kakao.sdk.AppKey"
+            android:value="577b0a9bb06eda95fc517ebd07a18c93"/>
 
         <activity
             android:name=".MainActivity"
@@ -30,6 +33,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- 기존 guardpay OAuth redirect (필요하면 유지) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -38,14 +42,19 @@
             </intent-filter>
         </activity>
 
+        <!-- ✅ 카카오 로그인 Activity (새 앱 키로 업데이트) -->
         <activity
             android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
             android:exported="true">
-            <intent-filter>
+            <intent-filter android:label="flutter_web_auth">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="kakao6cdfe8239c6cf5fdbaf793f4fc9581e3" android:host="oauth"/>
+
+                <!-- ✅ 새 카카오 앱 키로 변경 -->
+                <data
+                    android:scheme="kakao577b0a9bb06eda95fc517ebd07a18c93"
+                    android:host="oauth"/>
             </intent-filter>
         </activity>
 

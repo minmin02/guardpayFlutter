@@ -18,13 +18,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final storage = AppStorage.storage;
   final ApiService _api = ApiService();
   int _selectedIndex = 0;
-// _HomeScreenState 클래스 내부 변수로 추가
+
   final List<Map<String, String>> _searchOptions = [
     {'title': '역량 진단', 'route': '/assessment'},
     {'title': '금융 퀴즈', 'route': '/quizCategory'},
     {'title': '보이스피싱 예방', 'route': '/video'},
     {'title': '마이페이지', 'route': '/mypage'},
-    {'title': '내 등급 조회', 'route': '/grade'}, // 새로 만든 등급 화면
+    {'title': '내 등급 조회', 'route': '/grade'},
   ];
   String? accessToken;
 
@@ -76,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Autocomplete<Map<String, String>>(
-                      // 1️⃣ 검색 로직
                       optionsBuilder: (TextEditingValue textEditingValue) {
                         if (textEditingValue.text == '') {
                           return const Iterable<Map<String, String>>.empty();
@@ -86,15 +85,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         });
                       },
 
-                      // 2️⃣ 선택 시 이동 로직
                       onSelected: (Map<String, String> selection) {
-                        // 키보드 내리기
                         FocusManager.instance.primaryFocus?.unfocus();
                         print('선택된 메뉴: ${selection['title']}');
                         Navigator.pushNamed(context, selection['route']!);
                       },
 
-                      // 3️⃣ 입력창 디자인 (기존 유지)
                       fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
                         return TextField(
                           controller: textEditingController,
@@ -114,25 +110,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
 
-                      // 4️⃣ [수정됨] 자동완성 리스트 디자인
                       optionsViewBuilder: (context, onSelected, options) {
                         return Align(
                           alignment: Alignment.topLeft,
                           child: Material(
                             elevation: 4.0,
-                            color: Colors.transparent, // Material 자체 색상은 투명하게
+                            color: Colors.transparent,
                             child: Container(
-                              // ✅ 너비를 화면 너비에 맞게 조절 (약간의 여백 제외)
                               width: MediaQuery.of(context).size.width - 90,
                               constraints: const BoxConstraints(
-                                maxHeight: 200, // ✅ 리스트 최대 높이 제한 (스크롤 가능하게)
+                                maxHeight: 200,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: ListView.builder(
-                                padding: EdgeInsets.zero, // 🚨 여기에 있던 'ㅇ' 오타 제거 완료
+                                padding: EdgeInsets.zero,
                                 shrinkWrap: true,
                                 itemCount: options.length,
                                 itemBuilder: (BuildContext context, int index) {
@@ -154,7 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 15),
 
                   const SizedBox(width: 12),
-                  // ✅ 톱니바퀴 아이콘을 GestureDetector로 감싸서 마이페이지로 이동
                   GestureDetector(
                     onTap: () {
                       Navigator.pushNamed(context, '/mypage');
@@ -166,46 +159,83 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // 🔹 상단 배너
+            // 🔹 상단 배너 - 로고 흰 박스 제거
             Container(
               width: double.infinity,
-              height: 160,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF8C6),
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0, top: 15.0),
-                    child: Image.asset(
-                      'assets/images/main_logo-removebg-preview.png',
-                      width: 80,
-                      height: 80,
-                    ),
-                  ),
-                  const SizedBox(width: 25),
-                  const Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: 13.0),
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          '안전 송금, 퀴즈로 배우자!\n퀴즈 풀고 포인트를 모아요!',
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
+              height: 190,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFFFF8DC),
+                    Color(0xFFFFF0B3),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 로고 (흰 박스 제거)
+                    Image.asset(
+                      'assets/images/main_logo-removebg-preview.png',
+                      width: 130,
+                      height: 130,
+                      fit: BoxFit.contain,
+                    ),
+
+                    const SizedBox(width: 20),
+
+                    // 텍스트
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '안전 송금,\n퀴즈로 배우자!',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2D2D2D),
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFB74D),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              '퀴즈 풀고 포인트 모으기',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 

@@ -51,8 +51,8 @@ class _GradeScreenState extends State<GradeScreen> {
   Color _getGradeColor(String? grade) {
     if (grade == null) return Colors.grey;
     if (grade.contains("안전")) return Colors.green;
-    if (grade.contains("주의")) return Colors.orange;
-    if (grade.contains("위험")) return Colors.red;
+    if (grade.contains("방패")) return Colors.yellow;
+    if (grade.contains("초보")) return Colors.red;
     return Colors.blueAccent;
   }
 

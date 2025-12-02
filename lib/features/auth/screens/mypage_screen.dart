@@ -29,6 +29,7 @@ class _MypageScreenState extends State<MypageScreen> {
   String? profileImageUrl;
   File? _selectedImage;
   int _points = 0;
+  String _grade = '주의 필요';
   bool isLoading = true;
   bool isEditing = false;
   bool isUpdating = false;
@@ -37,6 +38,41 @@ class _MypageScreenState extends State<MypageScreen> {
   void initState() {
     super.initState();
     _loadUserInfo();
+  }
+
+  Map<String, dynamic> _getGradeInfo(String grade) {
+    final normalizedGrade = grade.replaceAll('_', '').replaceAll(' ', '');
+    const Color commonTextColor = Color(0xFF424242);
+
+    switch (normalizedGrade) {
+      case '안전송금마스터':
+        return {
+          'text': '안전 송금 마스터',
+          'textColor': commonTextColor,
+          'bgColor': const Color(0xFFE8F5E9),
+        };
+
+      case '금융방패단':
+        return {
+          'text': '금융 방패단',
+          'textColor': commonTextColor,
+          'bgColor': const Color(0xFFFFFDE7),
+        };
+
+      case '초보금융가':
+        return {
+          'text': '초보 금융가',
+          'textColor': commonTextColor,
+          'bgColor': const Color(0xFFFFEBEE),
+        };
+
+      default:
+        return {
+          'text': '주의 필요',
+          'textColor': commonTextColor,
+          'bgColor': const Color(0xFFE3F2FD),
+        };
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -61,6 +97,7 @@ class _MypageScreenState extends State<MypageScreen> {
         setState(() {
           _nicknameController.text = response['nickname'] ?? 'OOO';
           _points = response['points'] ?? 0;
+          _grade = response['grade'] ?? '주의 필요';
 
           final rawImageUrl = response['profileImageUrl'];
           if (rawImageUrl != null) {
@@ -316,6 +353,7 @@ class _MypageScreenState extends State<MypageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final gradeInfo = _getGradeInfo(_grade);
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -426,16 +464,27 @@ class _MypageScreenState extends State<MypageScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: gradeInfo['bgColor'],
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        '안전송금 새싹 🌱',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green,
-                        ),
+                      child: Row( // Row 추가
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.verified_user_rounded,
+                            size: 16, // 배지에 맞게 크기 조정
+                            color: gradeInfo['textColor'],
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            gradeInfo['text'], // 등급별 텍스트
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: gradeInfo['textColor'], // 등급별 글자색
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

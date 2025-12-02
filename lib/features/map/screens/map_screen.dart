@@ -184,62 +184,6 @@ class _MapScreenState extends State<MapScreen> {
         body: Stack(
           children: [
             WebViewWidget(controller: _webViewController),
-            Positioned(
-              top: 8,
-              left: 16,
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: () async {
-                    if (await _webViewController.canGoBack()) {
-                      _webViewController.goBack();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new,
-                      color: Colors.black87,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ),Positioned(
-              top: 8,
-              left: 16,
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  onTap: () async {
-                    if (await _webViewController.canGoBack()) {
-                      _webViewController.goBack();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new,
-                      color: Colors.black87,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
 
             if (!_isMapLoaded)
               const Center(child: CircularProgressIndicator()),

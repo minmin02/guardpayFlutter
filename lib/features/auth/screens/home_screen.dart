@@ -76,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Autocomplete<Map<String, String>>(
+                      displayStringForOption: (option) => '',
                       // 1️⃣ 검색 로직
                       optionsBuilder: (TextEditingValue textEditingValue) {
                         if (textEditingValue.text == '') {

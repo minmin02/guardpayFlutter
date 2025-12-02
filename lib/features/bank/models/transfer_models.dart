@@ -1,10 +1,12 @@
 // 1. 내 계좌 정보 모델
 class MyAccount {
+  final String myId;
   final String accountName;
   final int balance;
   final String currency;
 
   MyAccount({
+    required this.myId,
     required this.accountName,
     required this.balance,
     required this.currency,
@@ -12,13 +14,9 @@ class MyAccount {
 
   factory MyAccount.fromJson(Map<String, dynamic> json) {
     return MyAccount(
-      // 1. 이름: 서버에서 이름('nickname' 등)을 주면 쓰고, 안 주면 'GuardPay 머니'로 표시
+      myId: (json['id'] ?? json['memberId'] ?? json['username'] ?? 'unknown').toString(),
       accountName: json['nickname'] ?? json['name'] ?? json['accountName'] ?? 'GuardPay 머니',
-
-      // 2. 잔액: 'point', 'points', 'balance' 중 하나라도 있으면 가져오기
       balance: json['point'] ?? json['points'] ?? json['balance'] ?? 0,
-
-      // 3. 통화: 없으면 원화(KRW)
       currency: json['currency'] ?? 'KRW',
     );
   }

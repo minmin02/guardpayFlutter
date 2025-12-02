@@ -57,6 +57,7 @@ class TransferService {
       if (data is int) {
         print("⚠️ 데이터가 숫자로 왔습니다. 객체로 변환합니다.");
         return MyAccount(
+          myId: 'unknown',
           balance: data,
           accountName: 'GuardPay 포인트',
           currency: 'KRW',

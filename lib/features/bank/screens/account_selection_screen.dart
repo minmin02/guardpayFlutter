@@ -40,8 +40,50 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
   Future<void> _initializeScreen() async {
     final token = await _storage.read(key: 'accessToken');
 
-    // 1. 완료된 ID 목록 로드
-    final String? savedIds = await _storage.read(key: 'completed_ids');
+    if (token == null) {
+      if (mounted) setState(() => _isLoadingToken = false);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _accessToken = token;
+        _isLoadingToken = false;
+      });
+    }
+
+    await _fetchMyAccount();
+    if (_myAccount == null) return;
+
+    final String currentUserId = _myAccount!.myId;
+    final String? savedUserId = await _storage.read(key: 'last_user_id');
+
+    final String cacheKey = 'cached_beneficiaries_$currentUserId';
+    final String dateKey = 'last_update_date_$currentUserId';
+    final String completedKey = 'completed_ids_$currentUserId';
+
+    if (savedUserId != null && savedUserId != currentUserId) {
+      print("사용자가 변경되었습니다. ($savedUserId -> $currentUserId) 데이터를 초기화합니다.");
+      _completedBeneficiaryIds.clear();
+    }
+
+    // 현재 사용자 ID를 저장소에 업데이트 (다음번 비교를 위해)
+    await _storage.write(key: 'last_user_id', value: currentUserId);
+
+    // 날짜 확인: 오늘 날짜 vs 저장된 날짜
+    final String todayStr = DateTime.now().toString().split(' ')[0];
+    final String? lastDate = await _storage.read(key: dateKey);
+
+    // 날짜가 다르면(새로운 하루) 캐시 삭제
+    if (lastDate != todayStr) {
+      await _storage.delete(key: cacheKey);
+      await _storage.delete(key: completedKey);
+      _completedBeneficiaryIds.clear();
+      print("날짜가 변경되어 목록을 갱신합니다.");
+    }
+
+    // 완료된 ID 목록 로드
+    final String? savedIds = await _storage.read(key: completedKey);
     if (savedIds != null && savedIds.isNotEmpty) {
       final List<int> ids = savedIds
           .split(',')
@@ -51,8 +93,8 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
       _completedBeneficiaryIds.addAll(ids);
     }
 
-    // 2. 저장된 '계좌 목록' 불러오기 (캐싱)
-    final String? cachedListJson = await _storage.read(key: 'cached_beneficiaries');
+    // 저장된 '계좌 목록' 불러오기
+    final String? cachedListJson = await _storage.read(key: cacheKey);
     List<Beneficiary> cachedList = [];
     if (cachedListJson != null) {
       try {
@@ -65,21 +107,15 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
 
     if (mounted) {
       setState(() {
-        _accessToken = token;
-        _isLoadingToken = false;
-
         if (cachedList.isNotEmpty) {
           _beneficiaries = cachedList;
           _isLoadingBeneficiaries = false;
         }
       });
 
-      if (_accessToken != null) {
-        _fetchMyAccount();
-
-        if (cachedList.isEmpty) {
-          _fetchAndSaveBeneficiaries();
-        }
+      // 캐시가 없으면(사용자 변경됨 or 날짜 변경됨 or 최초 실행) 서버 요청
+      if (cachedList.isEmpty) {
+        _fetchAndSaveBeneficiaries(currentUserId);
       }
     }
   }
@@ -100,10 +136,12 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
     }
   }
 
-  Future<void> _fetchAndSaveBeneficiaries() async {
+  Future<void> _fetchAndSaveBeneficiaries(String myId) async {
     if (_accessToken == null) return;
     try {
       setState(() => _isLoadingBeneficiaries = true);
+
+      // 1. 서버에서 목록 가져오기 (서버가 이미 랜덤으로 섞어서 줌)
       final list = await _service.getBeneficiaries(_accessToken!);
 
       if (mounted) {
@@ -112,6 +150,10 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
           _isLoadingBeneficiaries = false;
         });
 
+        final String cacheKey = 'cached_beneficiaries_$myId';
+        final String dateKey = 'last_update_date_$myId';
+
+        // 2. 목록 저장 (캐싱)
         final jsonString = jsonEncode(list.map((b) => {
           'id': b.beneficiaryId,
           'bankName': b.bankName,
@@ -119,7 +161,11 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
           'accountHolderName': b.accountHolderName,
           'nickname': b.nickname,
         }).toList());
-        await _storage.write(key: 'cached_beneficiaries', value: jsonString);
+        await _storage.write(key: cacheKey, value: jsonString);
+
+        // [추가된 로직 2] 오늘 날짜 저장 (내일 비교하기 위해)
+        final String todayStr = DateTime.now().toString().split(' ')[0];
+        await _storage.write(key: dateKey, value: todayStr);
       }
     } catch (e) {
       print("목록 불러오기 실패: $e");
@@ -128,11 +174,17 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
   }
 
   Future<void> _saveCompletedId(int id) async {
+    if (_myAccount == null) return;
+
+    final String myId = _myAccount!.myId;
+    final String completedKey = 'completed_ids_$myId';
+
     setState(() {
       _completedBeneficiaryIds.add(id);
     });
+
     await _storage.write(
-      key: 'completed_ids',
+      key: completedKey,
       value: _completedBeneficiaryIds.join(','),
     );
   }

@@ -4,7 +4,7 @@ import 'package:guardpayfront/features/assessment/services/assessment_service.da
 import 'package:guardpayfront/features/assessment/widgets/result_dialog.dart';
 import 'package:guardpayfront/core/services/storage.dart';
 
-// 1. 16진수 색상 코드를 편리하게 사용하기 위한 확장 함수 (클래스 밖으로 이동)
+// 1. 16진수 색상 코드를 편리하게 사용하기 위한 확장 함수
 extension ColorExtension on String {
   Color toColor() {
     var hexColor = replaceAll('#', '');
@@ -33,7 +33,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   Future<List<Quiz>>? _quizzesFuture;
   late List<Quiz> _quizzes;
   int _currentIndex = 0;
-  String? _selectedAnswerKey;
+  int? _selectedOptionId;
 
   String? _accessToken;
   final storage = AppStorage.storage;
@@ -44,21 +44,21 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _loadQuizData();
   }
 
-  // 5. ✅ 새 메서드: 토큰을 읽고 퀴즈 로딩을 시작
+  // 새 메서드: 토큰을 읽고 퀴즈 로딩을 시작
   Future<void> _loadQuizData() async {
-    // 5a. 저장소에서 토큰 읽기
+    // 저장소에서 토큰 읽기
     final token = await storage.read(key: 'accessToken');
 
     if (token == null) {
       print("🚨 퀴즈 로딩 실패: 저장된 토큰이 없습니다. 로그인 화면으로 이동합니다.");
-      // 토큰이 없으면 로그인 화면으로 강제 이동 (optional)
+      // 토큰이 없으면 로그인 화면으로 강제 이동
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
       return;
     }
 
-    // 5b. 토큰과 퀴즈 Future를 설정하고 UI 업데이트
+    // 토큰과 퀴즈 Future를 설정하고 UI 업데이트
     setState(() {
       _accessToken = token;
       _quizzesFuture = _service.fetchAssessmentQuizzes(_accessToken!);
@@ -66,28 +66,28 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   void _nextQuestion() {
-    if (_selectedAnswerKey == null) return; // 답변 선택 안 했으면 이동 불가
-    // 1. ✅ 수정: 선택된 인덱스(0, 1, 2, 3)에 1을 더하여 Option ID를 '추정'합니다.
+    if (_selectedOptionId == null) return; // 답변 선택 안 했으면 이동 불가
+    // 선택된 인덱스(0, 1, 2, 3)에 1을 더하여 Option ID를 추정
     final currentQuiz = _quizzes[_currentIndex];
 
     _quizzes[_currentIndex] = currentQuiz.copyWith(
-      // ✅ 수정: userSelectedAnswer에 선택된 키(예: "1", "2")를 저장
-      userSelectedAnswer: _selectedAnswerKey,
+      // userSelectedAnswer에 선택된 키(예: "1", "2")를 저장
+      userSelectedAnswer: _selectedOptionId.toString(),
     );
 
     setState(() {
       if (_currentIndex < _quizzes.length - 1) {
         _currentIndex++;
-        _selectedAnswerKey = null;
+        _selectedOptionId = null;
       } else {
         _submitAssessment();
       }
     });
   }
 
-  void _handleAnswerSelection(String key) {
+  void _handleAnswerSelection(int optionId) {
     setState(() {
-      _selectedAnswerKey = key;
+      _selectedOptionId = optionId;
     });
   }
 
@@ -107,34 +107,41 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     );
   }
 
-// =======================================================
-// 5. 최종 제출 및 결과 조회 로직 (추가)
-// =======================================================
-
+  // 최종 제출 및 결과 조회 로직
   Future<void> _submitAssessment() async {
-// 1. 제출할 데이터 구조 생성
+    // 제출할 데이터 구조 생성
     final List<Map<String, dynamic>> submissionData = _quizzes.map((quiz) {
+      final String? selectedAnswerStr = quiz.userSelectedAnswer;
+
+      // 서버가 요구하는 int 타입으로 변환 (선택 안 했으면 0 또는 적절한 예외 처리)
+      int selectedOptionId = 0;
+      if (selectedAnswerStr != null) {
+        try {
+          selectedOptionId = int.parse(selectedAnswerStr);
+        } catch (e) {
+          print('파싱 에러: 선택된 답변 ID ($selectedAnswerStr)가 유효한 정수가 아닙니다.');
+        }
+      }
+
       return {
         'quizId': quiz.id,
-// userSelectedAnswer가 'A', 'B', 'C', 'D' 형태로 저장되어 있어야 함
-        'userAnswer': quiz.userSelectedAnswer,
+        // 'selectedOptionId' 키로 정수 값을 전달하도록 변경
+        'selectedOptionId': selectedOptionId,
       };
     }).toList();
 
     try {
-// 2. AssessmentService를 통해 9번 개별 제출 및 최종 레벨 조회
-// 이 함수는 9번의 API 호출을 수행합니다.
       final finalLevel = await _service.submitAssessmentResults(
         submissionData,
         _accessToken!,
       );
 
-// 3. 성공 시 결과 팝업 표시
+      // 성공 시 결과 팝업 표시
       _showResultDialog(context, finalLevel);
     } catch (e) {
-// 4. 에러 발생 시 처리
+      // 에러 발생 시 처리
       print('역량 진단 제출 중 오류 발생: $e');
-// 사용자에게 에러 메시지 표시 (예: Snackbar)
+      // 사용자에게 에러 메시지 표시
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('제출 실패: ${e.toString()}')),
@@ -143,19 +150,14 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     }
   }
 
-// =======================================================
-
-// 2. 퀴즈 내용 빌드 메서드 (상태 접근 가능)
-
-// =======================================================
-
+  // 퀴즈 내용 빌드 메서드 (상태 접근 가능)
   Widget _buildQuizContent() {
     final currentQuiz = _quizzes[_currentIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-// 퀴즈 번호
+        // 퀴즈 번호
         Padding(
           padding: const EdgeInsets.only(top: 7.0, left: 13.0),
           child: Text(
@@ -163,7 +165,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             style: const TextStyle(fontSize: 27, fontWeight: FontWeight.bold),
           ),
         ),
-// 퀴즈 질문
+        // 퀴즈 질문
         Padding(
           padding: const EdgeInsets.only(top: 28.0),
           child: Text(
@@ -178,17 +180,22 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         ),
         const SizedBox(height: 30),
 
-// 옵션 버튼 목록
-
+        // 옵션 버튼 목록
         Expanded(
           child: ListView(
             padding: EdgeInsets.zero,
-            children: currentQuiz.options.entries.map((entry) {
-              String key = entry.key; // 예: "1", "2"
-              String optionText = entry.value; // 예: "수취 은행명"
-              bool isSelected = _selectedAnswerKey == key; // ✅ 수정
+            children: currentQuiz.options.asMap().entries.map((entry) {
+              final int index = entry.key;
+              final option = entry.value;
+
+              final int optionId = option.optionId;
+              final String optionText = option.text;
+              final int optionNumber = index + 1;
+
+              bool isSelected = _selectedOptionId == optionId;
+
               return GestureDetector(
-                onTap: () => _handleAnswerSelection(key),
+                onTap: () => _handleAnswerSelection(optionId),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 25.0),
                   padding: const EdgeInsets.symmetric(vertical: 17.5, horizontal: 22),
@@ -210,7 +217,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                     ] : [],
                   ),
                   child: Text(
-                    '$key. $optionText',
+                    '${optionNumber}. $optionText',
                     style: TextStyle(
                       fontSize: 17,
                       color: isSelected ? Colors.green.shade800 : Colors.black87,
@@ -226,12 +233,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     );
   }
 
-// =======================================================
-
-// 3. 하단 버튼 빌드 메서드 (상태 접근 가능)
-
-// =======================================================
-
+  // 하단 버튼 빌드 메서드 (상태 접근 가능)
   Widget _buildBottomButton() {
 
     return Positioned(
@@ -239,32 +241,23 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       right: 33.0,
       bottom: 40.0,
       child: ElevatedButton(
-// 답변 선택 시에만 버튼 활성화
-        onPressed: _selectedAnswerKey != null ? _nextQuestion : null,
+        // 답변 선택 시에만 버튼 활성화
+        onPressed: _selectedOptionId != null ? _nextQuestion : null,
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(double.infinity, 53),
-          backgroundColor: _selectedAnswerKey != null ? Colors.green.shade600 : Colors.green.shade200,
+          backgroundColor: _selectedOptionId != null ? Colors.green.shade600 : Colors.green.shade200,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
 
         child: Text(
-// -1 빼면 마지막 제출하기 한 후 이니까 거기서 마지막 점수확인 으로 바꾸기
           _currentIndex == _quizzes.length - 1 ? '제출하기' : '다음 문제로',
-//if quizzes.empty == 점수확인하기
           style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
-
-
-// =======================================================
-
-// 4. 메인 빌드 메서드
-
-// =======================================================
-
+  // 메인 빌드 메서드
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -319,11 +312,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                         ),
                       ),
                     ),
-
-
-
-// 3. 메인 퀴즈 박스 (Positioned로 위치/크기 지정)
-
+                    // 메인 퀴즈 박스
                     Positioned(
                       left: 33.0,
                       right: 33.0,
@@ -346,7 +335,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                         child: _buildQuizContent(),
                       ),
                     ),
-// 4. 하단 버튼 메서드 호출
+                    // 하단 버튼 메서드 호출
                     _buildBottomButton(),
                   ],
                 ),

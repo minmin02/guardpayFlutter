@@ -66,6 +66,7 @@ class Quiz {
       categoryId: 0,
       level: 'UNKNOWN',
       point: 0,
+
     );
   }
 

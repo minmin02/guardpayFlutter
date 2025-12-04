@@ -1,10 +1,10 @@
 class Quiz {
   final int id;
   final String question;
-  final Map<String, String> options;
-  final String answer; // 정답 키 (예: 'B')
+  final List<Option> options;
+  final String answer; // 정답 키
   final int categoryId;
-  final String level; // 난이도 (예: 'EASY', 'MEDIUM', 'HARD')
+  final String level; // 난이도
   final int point;
   final String? userSelectedAnswer;
 
@@ -34,24 +34,34 @@ class Quiz {
     );
   }
 
-
-
   factory Quiz.fromJson(Map<String, dynamic> json) {
-    // API의 options는 Map<String, dynamic>이지만, 값은 String입니다.
-    final Map<String, dynamic> rawOptions = json['options'] ?? {};
-    final Map<String, String> parsedOptions = rawOptions.map(
-          (key, value) => MapEntry(key, value as String),
-    );
+    final List<dynamic> rawOptions = json['options'] ?? [];
+    final List<Option> parsedOptions = rawOptions
+        .map((optionJson) => Option.fromJson(optionJson as Map<String, dynamic>))
+        .toList();
 
     return Quiz(
       id: json['questionId'] as int? ?? 0,
       question: json['questionText'] as String? ?? 'No Question',
       options: parsedOptions,
-      // ⬇ 새 API 명세에 없는 필드들은 기본값으로 채웁니다.
       answer: '',
       categoryId: 0,
       level: 'UNKNOWN',
       point: 0,
     );
   }
-} 
+}
+
+class Option {
+  final int optionId;
+  final String text;
+
+  Option({required this.optionId, required this.text});
+
+  factory Option.fromJson(Map<String, dynamic> json) {
+    return Option(
+      optionId: json['optionId'] as int,
+      text: json['text'] as String,
+    );
+  }
+}
